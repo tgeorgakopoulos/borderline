@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>GeoQuiz Research</title>
+<title>Borderline Research</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/topojson/3.0.2/topojson.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
@@ -128,7 +128,7 @@
 
   <div class="screen active" id="home-screen">
     <div class="panel center">
-      <h1>🌍 GeoQuiz Research</h1>
+      <h1>🌍 Borderline Research</h1>
       <p class="sub" id="home-sub">Participant access & researcher panel</p>
       <div id="loading">Loading world map…</div>
       <div id="home-actions" style="display:none">
@@ -1364,7 +1364,7 @@
     const blob = new Blob(["﻿" + rows.join("\n")], { type: "text/csv;charset=utf-8" });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
-    a.download = "geoquiz_" + code + "_responses.csv";
+    a.download = "borderline_" + code + "_responses.csv";
     a.click();
     URL.revokeObjectURL(a.href);
   }
