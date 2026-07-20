@@ -1,0 +1,1375 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>GeoQuiz Research</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/topojson/3.0.2/topojson.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<style>
+  :root {
+    --ink: #1e293b; --muted: #64748b; --line: #cbd5e1; --frame: #94a3b8;
+    --sea: #edf4f9; --accent: #2563eb; --good: #16a34a; --good-soft: #86efac;
+    --bad: #dc2626; --bad-soft: #fca5a5; --hover: #dbeafe;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; overflow: hidden; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background: #fff; color: var(--ink); display: flex; flex-direction: column;
+  }
+  #header {
+    display: none; align-items: center; justify-content: space-between;
+    gap: 12px; padding: 10px 16px; border-bottom: 1px solid #e2e8f0;
+  }
+  #header.active { display: flex; }
+  #prompt { font-size: 15px; color: var(--muted); }
+  #target-name { font-size: clamp(20px, 3.5vw, 28px); font-weight: 700; }
+  #item-count { font-size: 14px; color: var(--muted); }
+  #map-wrap { flex: 1; position: relative; min-height: 0; }
+  #map { width: 100%; height: 100%; display: block; touch-action: none; }
+  #sea { fill: var(--sea); }
+  #frame-border { fill: none; stroke: var(--frame); stroke-width: 1.5; pointer-events: none; }
+  .country, .territory {
+    fill: #fff; stroke: var(--line); stroke-width: 0.6;
+    vector-effect: non-scaling-stroke; cursor: pointer; transition: fill 0.12s;
+  }
+  .territory.mute { pointer-events: none; }
+  .lake { fill: var(--sea); stroke: var(--line); stroke-width: 0.5; vector-effect: non-scaling-stroke; pointer-events: none; }
+  .marker {
+    fill: #fff; stroke: var(--muted); stroke-width: 1.2;
+    vector-effect: non-scaling-stroke; cursor: pointer; transition: fill 0.12s;
+  }
+  .flash-good { fill: var(--good-soft) !important; stroke: var(--good) !important; }
+  .flash-bad  { fill: var(--bad-soft) !important; stroke: var(--bad) !important; }
+  .reveal { fill: var(--good-soft) !important; stroke: var(--good) !important; animation: pulse 0.7s ease-in-out 2; }
+  @keyframes pulse { 50% { fill-opacity: 0.35; } }
+  #zoom-controls { position: absolute; right: 14px; bottom: 18px; display: flex; flex-direction: column; gap: 6px; }
+  #zoom-controls button {
+    width: 42px; height: 42px; border: 1px solid var(--line); background: #fff;
+    border-radius: 10px; font-size: 20px; cursor: pointer; box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+  }
+  #toast {
+    position: absolute; left: 50%; top: 14px; transform: translateX(-50%);
+    background: var(--ink); color: #fff; padding: 10px 18px; border-radius: 10px;
+    font-size: 15px; opacity: 0; pointer-events: none; transition: opacity 0.25s;
+    max-width: 90%; text-align: center;
+  }
+  #toast.show { opacity: 1; }
+  #toast.good { background: var(--good); }
+  #toast.bad { background: var(--bad); }
+  .screen {
+    position: absolute; inset: 0; display: none; align-items: flex-start;
+    justify-content: center; background: rgba(255,255,255,0.98); z-index: 10; overflow-y: auto;
+  }
+  .screen.active { display: flex; }
+  .panel { max-width: 620px; width: 94%; padding: 40px 8px 60px; }
+  .panel.center { text-align: center; }
+  .panel h1 { font-size: clamp(24px, 4vw, 34px); margin-bottom: 8px; }
+  .panel h2 { font-size: 20px; margin: 22px 0 10px; }
+  .panel .sub { color: var(--muted); font-size: 15px; margin-bottom: 24px; }
+  .consent-text { white-space: pre-wrap; font-size: 15px; line-height: 1.55; text-align: left; border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px; margin-bottom: 22px; max-height: 45vh; overflow-y: auto; }
+  .field { margin-bottom: 16px; text-align: left; }
+  .field label { display: block; font-size: 14px; font-weight: 600; margin-bottom: 5px; }
+  .field input[type=text], .field input[type=number], .field input[type=email], .field input[type=password], .field select, .field textarea {
+    width: 100%; padding: 9px 11px; border: 1.5px solid var(--line); border-radius: 9px;
+    font-size: 15px; font-family: inherit; background: #fff; color: var(--ink);
+  }
+  .field textarea { min-height: 90px; }
+  .primary-btn, .ghost-btn, .mini-btn {
+    border-radius: 10px; padding: 12px 22px; font-size: 15px; cursor: pointer; font-family: inherit;
+  }
+  .primary-btn { background: var(--accent); color: #fff; border: none; }
+  .primary-btn:hover { background: #1d4ed8; }
+  .ghost-btn { background: #fff; color: var(--ink); border: 1.5px solid var(--line); }
+  .ghost-btn:hover { border-color: var(--muted); }
+  .mini-btn { padding: 4px 10px; font-size: 13px; background: #fff; border: 1px solid var(--line); border-radius: 7px; }
+  .mini-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .btn-row { display: flex; gap: 10px; justify-content: center; margin-top: 8px; flex-wrap: wrap; }
+  .note { font-size: 12.5px; color: var(--muted); margin-top: 18px; }
+  .admin-wide { max-width: 780px; }
+  table.qlist { width: 100%; border-collapse: collapse; font-size: 14px; }
+  table.qlist th, table.qlist td { text-align: left; padding: 8px 8px; border-bottom: 1px solid #e2e8f0; }
+  table.qlist th { color: var(--muted); font-weight: 600; font-size: 12.5px; }
+  .chk-row { display: flex; gap: 16px; flex-wrap: wrap; font-size: 14px; }
+  .chk-row label { display: flex; align-items: center; gap: 6px; font-weight: 400; }
+  #c-list { list-style: none; border: 1px solid #e2e8f0; border-radius: 10px; max-height: 260px; overflow-y: auto; margin-top: 10px; }
+  #c-list li { display: flex; align-items: center; gap: 8px; padding: 5px 10px; border-bottom: 1px solid #f1f5f9; font-size: 14px; }
+  #c-list li .cname { flex: 1; }
+  #c-list li button { border: none; background: none; cursor: pointer; color: var(--muted); font-size: 14px; padding: 2px 5px; }
+  #c-list li button:hover { color: var(--accent); }
+  .cq-row { display: flex; gap: 8px; margin-bottom: 8px; }
+  .cq-row input { flex: 1; padding: 7px 10px; border: 1.5px solid var(--line); border-radius: 8px; font-size: 14px; font-family: inherit; }
+  .inline-add { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+  .inline-add input, .inline-add select { padding: 8px 10px; border: 1.5px solid var(--line); border-radius: 8px; font-size: 14px; font-family: inherit; }
+  #loading { color: var(--muted); font-size: 16px; }
+  .badge { display: inline-block; font-size: 12px; background: #eff6ff; color: var(--accent); border-radius: 999px; padding: 2px 10px; margin-left: 8px; }
+</style>
+</head>
+<body>
+
+<div id="header">
+  <div>
+    <div id="prompt"></div>
+    <div id="target-name">—</div>
+  </div>
+  <div id="item-count"></div>
+</div>
+
+<div id="map-wrap">
+  <svg id="map"></svg>
+  <div id="zoom-controls">
+    <button id="zoom-in" aria-label="Zoom in">+</button>
+    <button id="zoom-out" aria-label="Zoom out">−</button>
+    <button id="zoom-reset" aria-label="Reset view" style="font-size:14px">⌂</button>
+  </div>
+  <div id="toast"></div>
+
+  <div class="screen active" id="home-screen">
+    <div class="panel center">
+      <h1>🌍 GeoQuiz Research</h1>
+      <p class="sub" id="home-sub">Participant access & researcher panel</p>
+      <div id="loading">Loading world map…</div>
+      <div id="home-actions" style="display:none">
+        <div class="field" style="max-width:320px;margin:0 auto 14px">
+          <label id="lbl-code">Study code</label>
+          <input type="text" id="code-input" autocomplete="off" style="text-transform:uppercase;text-align:center;font-size:18px;letter-spacing:2px">
+        </div>
+        <div class="btn-row">
+          <button class="primary-btn" id="join-btn">Join study</button>
+          <button class="ghost-btn" id="admin-btn">Researcher panel</button>
+        </div>
+        <p class="note">Responses upload securely to the study database.<br>If the connection drops, they are kept on this device and synced automatically.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="screen" id="login-screen">
+    <div class="panel center" style="max-width:420px">
+      <h1>Researcher login</h1>
+      <div class="field"><label>Email</label><input type="email" id="login-email" autocomplete="username"></div>
+      <div class="field"><label>Password</label><input type="password" id="login-pass" autocomplete="current-password"></div>
+      <div class="btn-row">
+        <button class="primary-btn" id="login-btn">Log in</button>
+        <button class="ghost-btn" id="login-back">Back</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="screen" id="admin-screen">
+    <div class="panel admin-wide">
+      <h1>Researcher panel <span class="badge" id="sync-badge"></span></h1>
+      <p class="sub">Create quizzes, share study codes, export data.</p>
+      <div id="admin-list-view">
+        <button class="primary-btn" id="new-quiz-btn">New quiz</button>
+        <button class="ghost-btn" id="admin-home-btn" style="margin-left:8px">Back</button>
+        <button class="ghost-btn" id="sync-now-btn" style="margin-left:8px">Sync now</button>
+        <button class="ghost-btn" id="logout-btn" style="margin-left:8px">Log out</button>
+        <h2>Your quizzes</h2>
+        <table class="qlist"><thead><tr>
+          <th>Name</th><th>Code</th><th>Lang</th><th>Items</th><th>Sessions</th><th></th>
+        </tr></thead><tbody id="quiz-rows"></tbody></table>
+        <p class="note" id="no-quizzes" style="display:none">No quizzes yet — create one.</p>
+      </div>
+
+      <div id="admin-edit-view" style="display:none">
+        <h2 id="builder-title">New quiz</h2>
+        <div class="field"><label>Quiz name</label><input type="text" id="q-name" placeholder="e.g., Pilot study A"></div>
+        <div class="field"><label>Participant language</label>
+          <select id="q-lang"><option value="en">English</option><option value="el">Ελληνικά</option></select></div>
+        <div class="field"><label>Options</label>
+          <div class="chk-row">
+            <label><input type="checkbox" id="q-feedback"> Show right/wrong feedback</label>
+            <label><input type="checkbox" id="q-zoom" checked> Allow zoom & pan</label>
+          </div></div>
+        <div class="field"><label>Demographics collected</label>
+          <div class="chk-row">
+            <label><input type="checkbox" id="d-age" checked> Age</label>
+            <label><input type="checkbox" id="d-gender" checked> Gender</label>
+            <label><input type="checkbox" id="d-education" checked> Education</label>
+            <label><input type="checkbox" id="d-location" checked> Location</label>
+          </div></div>
+        <div class="field"><label>Custom questions <span style="font-weight:400;color:var(--muted)">(leave choices empty for free text)</span></label>
+          <div id="cq-rows"></div>
+          <button class="mini-btn" id="cq-add">+ Add question</button></div>
+        <div class="field"><label>Consent text (shown before the quiz)</label><textarea id="q-consent"></textarea></div>
+        <div class="field"><label>Completion message (optional)</label><textarea id="q-done" style="min-height:50px"></textarea></div>
+        <div class="field"><label>Countries — asked in this exact order (<span id="c-count">0</span>)</label>
+          <div class="inline-add">
+            <select id="tier-sel">
+              <option value="easy">Easy tier</option>
+              <option value="moderate">Moderate tier</option>
+              <option value="hard">Hard tier</option>
+              <option value="all">All 195</option>
+            </select>
+            <button class="mini-btn" id="tier-add">Add tier</button>
+            <input type="text" id="c-search" list="dl-countries" placeholder="Add one country…">
+            <datalist id="dl-countries"></datalist>
+            <button class="mini-btn" id="c-add">Add</button>
+            <button class="mini-btn" id="c-shuffle">Shuffle order</button>
+            <button class="mini-btn" id="c-clear">Clear</button>
+          </div>
+          <ol id="c-list"></ol></div>
+        <div class="btn-row" style="justify-content:flex-start">
+          <button class="primary-btn" id="q-save">Save quiz</button>
+          <button class="ghost-btn" id="q-cancel">Cancel</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="screen" id="consent-screen">
+    <div class="panel center">
+      <h1 id="consent-title"></h1>
+      <div class="consent-text" id="consent-body"></div>
+      <div class="btn-row">
+        <button class="primary-btn" id="consent-yes"></button>
+        <button class="ghost-btn" id="consent-no"></button>
+      </div>
+    </div>
+  </div>
+
+  <div class="screen" id="demo-screen">
+    <div class="panel">
+      <h1 id="demo-title"></h1>
+      <div id="demo-fields"></div>
+      <div class="btn-row" style="justify-content:flex-start">
+        <button class="primary-btn" id="demo-next"></button>
+      </div>
+    </div>
+  </div>
+
+  <div class="screen" id="instr-screen">
+    <div class="panel center">
+      <h1 id="instr-title"></h1>
+      <p class="sub" id="instr-body" style="font-size:16px"></p>
+      <button class="primary-btn" id="start-btn"></button>
+    </div>
+  </div>
+
+  <div class="screen" id="done-screen">
+    <div class="panel center">
+      <h1 id="done-title"></h1>
+      <p class="sub" id="done-body"></p>
+      <p class="note" id="pending-note" style="display:none"></p>
+      <button class="ghost-btn" id="done-home"></button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+  let lang = "en";
+
+  // ================= Country names: dataset name -> [English, Greek] =================
+  const NAMES = {
+    "Afghanistan": ["Afghanistan", "Αφγανιστάν"],
+    "Albania": ["Albania", "Αλβανία"],
+    "Algeria": ["Algeria", "Αλγερία"],
+    "Andorra": ["Andorra", "Ανδόρα"],
+    "Angola": ["Angola", "Αγκόλα"],
+    "Antigua and Barb.": ["Antigua and Barbuda", "Αντίγκουα και Μπαρμπούντα"],
+    "Argentina": ["Argentina", "Αργεντινή"],
+    "Armenia": ["Armenia", "Αρμενία"],
+    "Australia": ["Australia", "Αυστραλία"],
+    "Austria": ["Austria", "Αυστρία"],
+    "Azerbaijan": ["Azerbaijan", "Αζερμπαϊτζάν"],
+    "Bahamas": ["Bahamas", "Μπαχάμες"],
+    "Bahrain": ["Bahrain", "Μπαχρέιν"],
+    "Bangladesh": ["Bangladesh", "Μπανγκλαντές"],
+    "Barbados": ["Barbados", "Μπαρμπάντος"],
+    "Belarus": ["Belarus", "Λευκορωσία"],
+    "Belgium": ["Belgium", "Βέλγιο"],
+    "Belize": ["Belize", "Μπελίζ"],
+    "Benin": ["Benin", "Μπενίν"],
+    "Bhutan": ["Bhutan", "Μπουτάν"],
+    "Bolivia": ["Bolivia", "Βολιβία"],
+    "Bosnia and Herz.": ["Bosnia and Herzegovina", "Βοσνία και Ερζεγοβίνη"],
+    "Botswana": ["Botswana", "Μποτσουάνα"],
+    "Brazil": ["Brazil", "Βραζιλία"],
+    "Brunei": ["Brunei", "Μπρουνέι"],
+    "Bulgaria": ["Bulgaria", "Βουλγαρία"],
+    "Burkina Faso": ["Burkina Faso", "Μπουρκίνα Φάσο"],
+    "Burundi": ["Burundi", "Μπουρούντι"],
+    "Cabo Verde": ["Cabo Verde", "Πράσινο Ακρωτήριο"],
+    "Cape Verde": ["Cabo Verde", "Πράσινο Ακρωτήριο"],
+    "Cambodia": ["Cambodia", "Καμπότζη"],
+    "Cameroon": ["Cameroon", "Καμερούν"],
+    "Canada": ["Canada", "Καναδάς"],
+    "Central African Rep.": ["Central African Republic", "Κεντροαφρικανική Δημοκρατία"],
+    "Chad": ["Chad", "Τσαντ"],
+    "Chile": ["Chile", "Χιλή"],
+    "China": ["China", "Κίνα"],
+    "Colombia": ["Colombia", "Κολομβία"],
+    "Comoros": ["Comoros", "Κομόρες"],
+    "Congo": ["Republic of the Congo", "Δημοκρατία του Κονγκό"],
+    "Costa Rica": ["Costa Rica", "Κόστα Ρίκα"],
+    "Croatia": ["Croatia", "Κροατία"],
+    "Cuba": ["Cuba", "Κούβα"],
+    "Cyprus": ["Cyprus", "Κύπρος"],
+    "Czechia": ["Czechia", "Τσεχία"],
+    "Czech Rep.": ["Czechia", "Τσεχία"],
+    "Côte d'Ivoire": ["Côte d'Ivoire", "Ακτή Ελεφαντοστού"],
+    "Dem. Rep. Congo": ["Democratic Republic of the Congo", "Λαϊκή Δημοκρατία του Κονγκό"],
+    "Denmark": ["Denmark", "Δανία"],
+    "Djibouti": ["Djibouti", "Τζιμπουτί"],
+    "Dominica": ["Dominica", "Ντομίνικα"],
+    "Dominican Rep.": ["Dominican Republic", "Δομινικανή Δημοκρατία"],
+    "Ecuador": ["Ecuador", "Ισημερινός"],
+    "Egypt": ["Egypt", "Αίγυπτος"],
+    "El Salvador": ["El Salvador", "Ελ Σαλβαδόρ"],
+    "Eq. Guinea": ["Equatorial Guinea", "Ισημερινή Γουινέα"],
+    "Eritrea": ["Eritrea", "Ερυθραία"],
+    "Estonia": ["Estonia", "Εσθονία"],
+    "Ethiopia": ["Ethiopia", "Αιθιοπία"],
+    "Fiji": ["Fiji", "Φίτζι"],
+    "Finland": ["Finland", "Φινλανδία"],
+    "France": ["France", "Γαλλία"],
+    "Gabon": ["Gabon", "Γκαμπόν"],
+    "Gambia": ["Gambia", "Γκάμπια"],
+    "Georgia": ["Georgia", "Γεωργία"],
+    "Germany": ["Germany", "Γερμανία"],
+    "Ghana": ["Ghana", "Γκάνα"],
+    "Greece": ["Greece", "Ελλάδα"],
+    "Grenada": ["Grenada", "Γρενάδα"],
+    "Guatemala": ["Guatemala", "Γουατεμάλα"],
+    "Guinea": ["Guinea", "Γουινέα"],
+    "Guinea-Bissau": ["Guinea-Bissau", "Γουινέα-Μπισάου"],
+    "Guyana": ["Guyana", "Γουιάνα"],
+    "Haiti": ["Haiti", "Αϊτή"],
+    "Honduras": ["Honduras", "Ονδούρα"],
+    "Hungary": ["Hungary", "Ουγγαρία"],
+    "Iceland": ["Iceland", "Ισλανδία"],
+    "India": ["India", "Ινδία"],
+    "Indonesia": ["Indonesia", "Ινδονησία"],
+    "Iran": ["Iran", "Ιράν"],
+    "Iraq": ["Iraq", "Ιράκ"],
+    "Ireland": ["Ireland", "Ιρλανδία"],
+    "Israel": ["Israel", "Ισραήλ"],
+    "Italy": ["Italy", "Ιταλία"],
+    "Jamaica": ["Jamaica", "Τζαμάικα"],
+    "Japan": ["Japan", "Ιαπωνία"],
+    "Jordan": ["Jordan", "Ιορδανία"],
+    "Kazakhstan": ["Kazakhstan", "Καζακστάν"],
+    "Kenya": ["Kenya", "Κένυα"],
+    "Kiribati": ["Kiribati", "Κιριμπάτι"],
+    "Kosovo": ["Kosovo", "Κόσοβο"],
+    "Kuwait": ["Kuwait", "Κουβέιτ"],
+    "Kyrgyzstan": ["Kyrgyzstan", "Κιργιζία"],
+    "Laos": ["Laos", "Λάος"],
+    "Lao PDR": ["Laos", "Λάος"],
+    "Latvia": ["Latvia", "Λετονία"],
+    "Lebanon": ["Lebanon", "Λίβανος"],
+    "Lesotho": ["Lesotho", "Λεσότο"],
+    "Liberia": ["Liberia", "Λιβερία"],
+    "Libya": ["Libya", "Λιβύη"],
+    "Liechtenstein": ["Liechtenstein", "Λιχτενστάιν"],
+    "Lithuania": ["Lithuania", "Λιθουανία"],
+    "Luxembourg": ["Luxembourg", "Λουξεμβούργο"],
+    "Macedonia": ["North Macedonia", "Βόρεια Μακεδονία"],
+    "North Macedonia": ["North Macedonia", "Βόρεια Μακεδονία"],
+    "Madagascar": ["Madagascar", "Μαδαγασκάρη"],
+    "Malawi": ["Malawi", "Μαλάουι"],
+    "Malaysia": ["Malaysia", "Μαλαισία"],
+    "Maldives": ["Maldives", "Μαλδίβες"],
+    "Mali": ["Mali", "Μάλι"],
+    "Malta": ["Malta", "Μάλτα"],
+    "Marshall Is.": ["Marshall Islands", "Νήσοι Μάρσαλ"],
+    "Mauritania": ["Mauritania", "Μαυριτανία"],
+    "Mauritius": ["Mauritius", "Μαυρίκιος"],
+    "Mexico": ["Mexico", "Μεξικό"],
+    "Micronesia": ["Micronesia", "Μικρονησία"],
+    "Moldova": ["Moldova", "Μολδαβία"],
+    "Monaco": ["Monaco", "Μονακό"],
+    "Mongolia": ["Mongolia", "Μογγολία"],
+    "Montenegro": ["Montenegro", "Μαυροβούνιο"],
+    "Morocco": ["Morocco", "Μαρόκο"],
+    "Mozambique": ["Mozambique", "Μοζαμβίκη"],
+    "Myanmar": ["Myanmar", "Μιανμάρ"],
+    "Namibia": ["Namibia", "Ναμίμπια"],
+    "Nauru": ["Nauru", "Ναουρού"],
+    "Nepal": ["Nepal", "Νεπάλ"],
+    "Netherlands": ["Netherlands", "Ολλανδία"],
+    "New Zealand": ["New Zealand", "Νέα Ζηλανδία"],
+    "Nicaragua": ["Nicaragua", "Νικαράγουα"],
+    "Niger": ["Niger", "Νίγηρας"],
+    "Nigeria": ["Nigeria", "Νιγηρία"],
+    "North Korea": ["North Korea", "Βόρεια Κορέα"],
+    "Dem. Rep. Korea": ["North Korea", "Βόρεια Κορέα"],
+    "Norway": ["Norway", "Νορβηγία"],
+    "Oman": ["Oman", "Ομάν"],
+    "Pakistan": ["Pakistan", "Πακιστάν"],
+    "Palau": ["Palau", "Παλάου"],
+    "Palestine": ["Palestine", "Παλαιστίνη"],
+    "Panama": ["Panama", "Παναμάς"],
+    "Papua New Guinea": ["Papua New Guinea", "Παπούα Νέα Γουινέα"],
+    "Paraguay": ["Paraguay", "Παραγουάη"],
+    "Peru": ["Peru", "Περού"],
+    "Philippines": ["Philippines", "Φιλιππίνες"],
+    "Poland": ["Poland", "Πολωνία"],
+    "Portugal": ["Portugal", "Πορτογαλία"],
+    "Qatar": ["Qatar", "Κατάρ"],
+    "Romania": ["Romania", "Ρουμανία"],
+    "Russia": ["Russia", "Ρωσία"],
+    "Rwanda": ["Rwanda", "Ρουάντα"],
+    "S. Sudan": ["South Sudan", "Νότιο Σουδάν"],
+    "Saint Lucia": ["Saint Lucia", "Αγία Λουκία"],
+    "Samoa": ["Samoa", "Σαμόα"],
+    "San Marino": ["San Marino", "Άγιος Μαρίνος"],
+    "Saudi Arabia": ["Saudi Arabia", "Σαουδική Αραβία"],
+    "Senegal": ["Senegal", "Σενεγάλη"],
+    "Serbia": ["Serbia", "Σερβία"],
+    "Seychelles": ["Seychelles", "Σεϋχέλλες"],
+    "Sierra Leone": ["Sierra Leone", "Σιέρα Λεόνε"],
+    "Singapore": ["Singapore", "Σιγκαπούρη"],
+    "Slovakia": ["Slovakia", "Σλοβακία"],
+    "Slovenia": ["Slovenia", "Σλοβενία"],
+    "Solomon Is.": ["Solomon Islands", "Νήσοι Σολομώντα"],
+    "Somalia": ["Somalia", "Σομαλία"],
+    "South Africa": ["South Africa", "Νότια Αφρική"],
+    "South Korea": ["South Korea", "Νότια Κορέα"],
+    "Korea": ["South Korea", "Νότια Κορέα"],
+    "Spain": ["Spain", "Ισπανία"],
+    "Sri Lanka": ["Sri Lanka", "Σρι Λάνκα"],
+    "St. Kitts and Nevis": ["Saint Kitts and Nevis", "Άγιος Χριστόφορος και Νέβις"],
+    "St. Vin. and Gren.": ["Saint Vincent and the Grenadines", "Άγιος Βικέντιος και Γρεναδίνες"],
+    "Sudan": ["Sudan", "Σουδάν"],
+    "Suriname": ["Suriname", "Σουρινάμ"],
+    "Sweden": ["Sweden", "Σουηδία"],
+    "Switzerland": ["Switzerland", "Ελβετία"],
+    "Syria": ["Syria", "Συρία"],
+    "São Tomé and Principe": ["São Tomé and Príncipe", "Σάο Τομέ και Πρίνσιπε"],
+    "Sao Tome and Principe": ["São Tomé and Príncipe", "Σάο Τομέ και Πρίνσιπε"],
+    "Taiwan": ["Taiwan", "Ταϊβάν"],
+    "Tajikistan": ["Tajikistan", "Τατζικιστάν"],
+    "Tanzania": ["Tanzania", "Τανζανία"],
+    "Thailand": ["Thailand", "Ταϊλάνδη"],
+    "Timor-Leste": ["Timor-Leste", "Ανατολικό Τιμόρ"],
+    "Togo": ["Togo", "Τόγκο"],
+    "Tonga": ["Tonga", "Τόνγκα"],
+    "Trinidad and Tobago": ["Trinidad and Tobago", "Τρινιντάντ και Τομπάγκο"],
+    "Tunisia": ["Tunisia", "Τυνησία"],
+    "Turkey": ["Turkey", "Τουρκία"],
+    "Turkmenistan": ["Turkmenistan", "Τουρκμενιστάν"],
+    "Uganda": ["Uganda", "Ουγκάντα"],
+    "Ukraine": ["Ukraine", "Ουκρανία"],
+    "United Arab Emirates": ["United Arab Emirates", "Ηνωμένα Αραβικά Εμιράτα"],
+    "United Kingdom": ["United Kingdom", "Ηνωμένο Βασίλειο"],
+    "United States of America": ["United States", "Ηνωμένες Πολιτείες"],
+    "Uruguay": ["Uruguay", "Ουρουγουάη"],
+    "Uzbekistan": ["Uzbekistan", "Ουζμπεκιστάν"],
+    "Vanuatu": ["Vanuatu", "Βανουάτου"],
+    "Venezuela": ["Venezuela", "Βενεζουέλα"],
+    "Vietnam": ["Vietnam", "Βιετνάμ"],
+    "Yemen": ["Yemen", "Υεμένη"],
+    "Zambia": ["Zambia", "Ζάμπια"],
+    "Zimbabwe": ["Zimbabwe", "Ζιμπάμπουε"],
+    "eSwatini": ["Eswatini", "Εσουατίνι"],
+    "Swaziland": ["Eswatini", "Εσουατίνι"],
+    // territories (drawn, never asked)
+    "Greenland": ["Greenland (Denmark)", "Γροιλανδία (Δανία)"],
+    "New Caledonia": ["New Caledonia (France)", "Νέα Καληδονία (Γαλλία)"],
+    "Puerto Rico": ["Puerto Rico (USA)", "Πουέρτο Ρίκο (ΗΠΑ)"],
+    "Falkland Is.": ["Falkland Islands (UK)", "Νήσοι Φώκλαντ (ΗΒ)"],
+    "W. Sahara": ["Western Sahara", "Δυτική Σαχάρα"],
+    "N. Cyprus": ["Northern Cyprus", "Βόρεια Κύπρος"],
+    "Somaliland": ["Somaliland", "Σομαλιλάνδη"],
+    "Hong Kong": ["Hong Kong (China)", "Χονγκ Κονγκ (Κίνα)"],
+    "Macao": ["Macao (China)", "Μακάο (Κίνα)"],
+    "French Guiana (France)": ["French Guiana (France)", "Γαλλική Γουιάνα (Γαλλία)"]
+  };
+  const displayName = f => {
+    const n = NAMES[f.properties.name];
+    return n ? n[lang === "el" ? 1 : 0] : f.properties.name;
+  };
+
+  // ================= Map design constants =================
+  const LAT_TOP = 74;
+  const LAT_BOT = -56.5;
+  const ROTATE = -11;
+  const MARGIN = 10;
+  const AREA_T = 8;
+  const REF_SCALE = 220;
+
+  // ---------- Corrected geometry (Morocco / Western Sahara, UN view) ----------
+  const GEO_PATCH = {"Morocco":{"type":"MultiPolygon","coordinates":[[[[-13.162,27.666],[-13.041,27.77],[-12.948,27.914],[-12.793,27.978],[-12.469,28.009],[-11.986,28.129],[-11.554,28.31],[-11.432,28.383],[-11.299,28.527],[-11.083,28.714],[-10.672,28.94],[-10.485,29.065],[-10.201,29.381],[-10.01,29.641],[-9.851,29.81],[-9.743,29.959],[-9.668,30.11],[-9.625,30.353],[-9.653,30.448],[-9.772,30.603],[-9.855,30.645],[-9.877,30.717],[-9.833,30.848],[-9.833,31.07],[-9.808,31.424],[-9.675,31.71],[-9.347,32.087],[-9.286,32.24],[-9.25,32.486],[-9.247,32.573],[-8.836,32.92],[-8.595,33.188],[-8.512,33.252],[-8.3,33.374],[-7.562,33.641],[-7.144,33.83],[-6.899,33.969],[-6.755,34.132],[-6.352,34.776],[-5.956,35.681],[-5.924,35.787],[-5.747,35.816],[-5.621,35.828],[-5.521,35.861],[-5.398,35.931],[-5.279,35.903],[-5.337,35.856],[-5.337,35.745],[-5.254,35.615],[-5.107,35.467],[-4.837,35.281],[-4.628,35.207],[-4.329,35.162],[-3.983,35.243],[-3.789,35.245],[-3.692,35.28],[-3.591,35.228],[-3.393,35.212],[-3.206,35.24],[-3.062,35.318],[-2.972,35.406],[-2.957,35.363],[-2.954,35.314],[-2.925,35.287],[-2.871,35.172],[-2.839,35.129],[-2.731,35.136],[-2.637,35.113],[-2.425,35.123],[-2.219,35.104],[-2.191,35.03],[-2.133,34.971],[-1.921,34.835],[-1.795,34.752],[-1.791,34.722],[-1.834,34.655],[-1.849,34.608],[-1.816,34.558],[-1.741,34.497],[-1.733,34.467],[-1.751,34.433],[-1.791,34.368],[-1.708,34.176],[-1.694,33.99],[-1.715,33.858],[-1.715,33.782],[-1.705,33.717],[-1.633,33.566],[-1.679,33.318],[-1.625,33.183],[-1.55,33.073],[-1.51,32.877],[-1.449,32.785],[-1.352,32.703],[-1.298,32.676],[-1.19,32.608],[-1.111,32.552],[-1.064,32.469],[-1.161,32.4],[-1.24,32.337],[-1.262,32.271],[-1.226,32.165],[-1.226,32.108],[-1.276,32.089],[-1.478,32.094],[-1.636,32.099],[-1.816,32.105],[-2.072,32.115],[-2.23,32.122],[-2.45,32.131],[-2.522,32.125],[-2.723,32.096],[-2.864,32.075],[-2.885,32.068],[-2.932,32.042],[-2.961,31.964],[-2.99,31.874],[-3.019,31.834],[-3.44,31.705],[-3.605,31.686],[-3.699,31.7],[-3.767,31.69],[-3.825,31.662],[-3.847,31.62],[-3.85,31.566],[-3.836,31.513],[-3.796,31.438],[-3.789,31.362],[-3.814,31.309],[-3.821,31.256],[-3.832,31.198],[-3.811,31.167],[-3.771,31.162],[-3.731,31.136],[-3.674,31.112],[-3.623,31.066],[-3.627,31],[-3.667,30.964],[-3.703,30.945],[-3.861,30.928],[-3.987,30.914],[-4.149,30.809],[-4.322,30.698],[-4.531,30.625],[-4.621,30.605],[-4.779,30.553],[-4.97,30.466],[-5.063,30.327],[-5.179,30.165],[-5.294,30.058],[-5.449,29.957],[-5.593,29.917],[-5.776,29.869],[-6.003,29.832],[-6.165,29.818],[-6.215,29.811],[-6.356,29.808],[-6.428,29.816],[-6.478,29.82],[-6.5,29.81],[-6.507,29.784],[-6.511,29.726],[-6.521,29.66],[-6.565,29.605],[-6.597,29.579],[-6.637,29.568],[-6.755,29.584],[-6.856,29.601],[-7.094,29.626],[-7.141,29.62],[-7.159,29.613],[-7.234,29.575],[-7.349,29.495],[-7.429,29.424],[-7.486,29.393],[-7.623,29.376],[-7.684,29.35],[-7.943,29.174],[-7.997,29.133],[-8.264,28.98],[-8.339,28.929],[-8.401,28.881],[-8.559,28.768],[-8.66,28.719],[-8.678,28.69],[-8.685,28.62],[-8.685,27.666],[-13.162,27.666]]]]},"W. Sahara":{"type":"MultiPolygon","coordinates":[[[[-17.098,20.857],[-17.008,21.378],[-17.005,21.421],[-16.929,21.9],[-16.792,22.159],[-16.684,22.274],[-16.515,22.334],[-16.36,22.595],[-16.303,22.834],[-16.202,22.945],[-16.17,23.032],[-16.209,23.098],[-16.112,23.228],[-15.997,23.426],[-15.943,23.553],[-15.806,23.749],[-15.788,23.793],[-15.802,23.843],[-15.856,23.799],[-15.914,23.728],[-15.982,23.671],[-15.954,23.74],[-15.9,23.845],[-15.777,23.952],[-15.586,24.072],[-15.19,24.478],[-15.039,24.549],[-14.906,24.72],[-14.856,24.872],[-14.841,25.22],[-14.794,25.404],[-14.708,25.548],[-14.604,25.808],[-14.524,25.926],[-14.47,26.162],[-14.413,26.254],[-14.312,26.296],[-14.168,26.416],[-13.952,26.489],[-13.696,26.643],[-13.578,26.735],[-13.495,26.872],[-13.408,27.147],[-13.257,27.435],[-13.178,27.652],[-13.174,27.655],[-13.162,27.666],[-8.685,27.666],[-8.685,27.285],[-8.681,27.119],[-8.681,25.996],[-12.015,25.996],[-12.015,23.577],[-12.022,23.468],[-12.084,23.435],[-12.228,23.378],[-12.372,23.319],[-12.559,23.291],[-12.62,23.272],[-12.739,23.192],[-12.897,23.089],[-13.03,23.001],[-13.12,22.885],[-13.153,22.82],[-13.167,22.753],[-13.156,22.688],[-13.106,22.56],[-13.095,22.496],[-13.088,22.383],[-13.077,22.26],[-13.07,22.128],[-13.059,21.996],[-13.052,21.855],[-13.041,21.715],[-13.034,21.572],[-13.027,21.466],[-13.016,21.334],[-13.398,21.334],[-13.624,21.333],[-14.773,21.333],[-15.003,21.331],[-16.148,21.331],[-16.378,21.329],[-16.965,21.329],[-17.005,21.142],[-17.041,21.008],[-17.062,20.899],[-17.048,20.807],[-17.098,20.857]]]]},"Cyprus":{"type":"MultiPolygon","coordinates":[[[[32.301,35.084],[32.391,35.051],[32.474,35.09],[32.557,35.156],[32.654,35.182],[32.712,35.17],[32.773,35.16],[32.881,35.181],[32.928,35.278],[32.942,35.391],[33.122,35.358],[33.309,35.342],[33.461,35.335],[33.608,35.354],[34.062,35.474],[34.191,35.545],[34.274,35.57],[34.411,35.629],[34.555,35.662],[34.465,35.594],[33.943,35.292],[33.907,35.202],[33.932,35.141],[34.004,35.064],[34.022,35.045],[34.051,34.988],[33.936,34.971],[33.824,34.965],[33.759,34.972],[33.698,34.971],[33.515,34.806],[33.414,34.75],[33.295,34.717],[33.176,34.698],[33.115,34.696],[33.061,34.676],[33.025,34.637],[33.025,34.599],[33.007,34.57],[32.942,34.577],[32.913,34.636],[32.867,34.662],[32.751,34.648],[32.694,34.65],[32.507,34.707],[32.449,34.729],[32.413,34.778],[32.316,34.953],[32.301,35.084]]]]}};
+
+  // ---------- Small island territories: removed from the map entirely ----------
+  const DROP_FROM_MAP = new Set([
+    "Fr. S. Antarctic Lands","Fr. Polynesia","American Samoa","Cook Is.","Niue",
+    "Wallis and Futuna Is.","Pitcairn Is.","Norfolk Island",
+    "Heard I. and McDonald Is.","Br. Indian Ocean Ter.","Saint Helena",
+    "S. Geo. and the Is.","Ashmore and Cartier Is.","Indian Ocean Ter.",
+    "Bermuda","Cayman Is.","Turks and Caicos Is.","Anguilla","Montserrat",
+    "British Virgin Is.","U.S. Virgin Is.","Curaçao","Aruba","Sint Maarten",
+    "St-Martin","St-Barthélemy","Faeroe Is.","Guam","N. Mariana Is.",
+    "St. Pierre and Miquelon","Guernsey","Jersey","Isle of Man","Åland","Vatican",
+    "N. Cyprus"
+  ]);
+
+  // ---------- Territories kept on the map (for continuity) but never asked ----------
+  const NOT_QUIZZABLE = new Set([
+    "Greenland","New Caledonia","Puerto Rico","Falkland Is.","W. Sahara",
+    "Somaliland","Hong Kong","Macao","Siachen Glacier",
+    "French Guiana (France)"
+  ]);
+  const NON_INTERACTIVE = new Set(["Siachen Glacier","W. Sahara","Somaliland"]);
+
+  // ---------- Overseas parts of countries: keep, split off, or drop ----------
+  const PART_RULES = {
+    "France": c => c[1] > 34 ? "keep"
+      : (c[0] > -56 && c[0] < -49 ? "French Guiana (France)" : "drop"),
+    "Netherlands": c => c[1] > 40 ? "keep" : "drop",
+    "New Zealand": c => c[1] < -20 ? "keep" : "drop",
+    "Australia": c => c[1] > -50 ? "keep" : "drop"
+  };
+
+  // ---------- Marker anchor overrides ----------
+  const ANCHOR = { "Kiribati": [172.98, 1.33] };   // Tarawa
+
+  // ---------- Difficulty tiers (FINAL) ----------
+  // Base: composite prominence index — 40% global awareness (YouGov survey, Q4 2025)
+  // + 20% log population + 20% log GDP + 20% log area (see tier_calc.js).
+  // Reviewed and adjusted by the research team in two passes
+  // (50 + 20 reassignments, 2026-07-20); audit trail in difficulty_methodology.md.
+  // easy = 45, moderate = 72, hard = remaining 78.
+  const TIERS = {
+    easy: ["China","United States of America","India","Russia","Brazil","Canada",
+      "Mexico","Japan","Germany","Australia","France","United Kingdom","Italy",
+      "Argentina","Spain","Saudi Arabia","Turkey","Egypt","Iran","South Africa",
+      "South Korea","Poland","Chile","Ukraine","Iraq","Venezuela","Sweden",
+      "Morocco","Netherlands","Norway","Romania","Belgium","Finland","Greece",
+      "Ireland","New Zealand","Portugal","Switzerland","Israel","North Korea",
+      "Denmark","Bulgaria","Cyprus","Iceland","Palestine"],
+    moderate: ["Afghanistan","Dem. Rep. Congo","Ecuador","Austria","Sudan",
+      "Czechia","Bolivia","Madagascar","Taiwan","Guatemala","Dominican Rep.",
+      "Hungary","Cuba","Costa Rica","Libya","Angola","Kazakhstan","Nepal","Yemen",
+      "United Arab Emirates","Honduras","Cambodia","Mongolia","Syria","Uruguay",
+      "Panama","Slovakia","Paraguay","Cameroon","Serbia","Jordan","Nicaragua",
+      "Croatia","Sri Lanka","Indonesia","Pakistan","Nigeria","Thailand",
+      "Colombia","Philippines","Vietnam","Ethiopia","Peru","Algeria","Bangladesh",
+      "Malaysia","Albania","Bosnia and Herz.","Estonia","Kosovo","Kuwait",
+      "Latvia","Lebanon","Liechtenstein","Luxembourg","Macedonia","Malta",
+      "Moldova","Monaco","Montenegro","Myanmar","Oman","Qatar","Singapore",
+      "Tunisia","Andorra","Armenia","Belarus","Georgia","Jamaica","San Marino",
+      "Slovenia"]
+  };
+  const EASY_SET = new Set(TIERS.easy);
+  const MOD_SET = new Set(TIERS.easy.concat(TIERS.moderate));
+  let difficulty = "all";
+  try { difficulty = localStorage.getItem("geoquiz-difficulty") || "all"; } catch (e) {}
+  if (!["easy", "moderate", "all"].includes(difficulty)) difficulty = "all";
+
+  function activePool() {
+    if (difficulty === "easy") return quizPool.filter(f => EASY_SET.has(f.properties.name));
+    if (difficulty === "moderate") return quizPool.filter(f => MOD_SET.has(f.properties.name));
+    return quizPool;
+  }
+
+  // ================= Projection: Miller (a balanced Mercator) =================
+  const Y_STRETCH = 1.15;
+  function millerRaw(lambda, phi) {
+    return [lambda, Y_STRETCH * 1.25 * Math.log(Math.tan(Math.PI / 4 + 0.4 * phi))];
+  }
+  millerRaw.invert = function (x, y) {
+    return [x, 2.5 * Math.atan(Math.exp(0.8 * y / Y_STRETCH)) - 0.625 * Math.PI];
+  };
+  const projection = d3.geoProjection(millerRaw).rotate([ROTATE, 0]);
+  const path = d3.geoPath(projection);
+  const millerY = latDeg =>
+    Y_STRETCH * 1.25 * Math.log(Math.tan(Math.PI / 4 + 0.4 * latDeg * Math.PI / 180));
+
+
+
+  // ================= Research strings =================
+  const RSTR = {
+    en: {
+      agree: "I agree — begin", decline: "I do not wish to participate",
+      declined: "Participation declined. You may close this page.",
+      demoTitle: "About you", next: "Continue", required: "Please answer all questions.",
+      age: "Age", gender: "Gender", education: "Education level", location: "Location (city, country)",
+      genderOpts: ["Male", "Female", "Other", "Prefer not to say"],
+      eduOpts: ["Primary", "Secondary", "Vocational", "Bachelor's degree", "Postgraduate"],
+      choose: "— select —",
+      instrTitle: "Instructions",
+      instr: n => "The name of a country will appear at the top of the screen. Tap or click that country on the map. There are " + n + " countries in total. Answer as accurately and as quickly as you can.",
+      instrZoom: "You can zoom and pan the map.", instrNoZoom: "The map view is fixed.",
+      start: "Start", find: "Find this country:", item: "Item", recorded: "✓",
+      correct: "Correct ✓", wrong: (c, t) => "That was " + c + " — the correct answer is highlighted",
+      doneTitle: "Thank you!", doneDefault: "Your responses have been recorded. You may close this page.",
+      home: "Back to start", notFound: "No study found with that code."
+    },
+    el: {
+      agree: "Συμφωνώ — έναρξη", decline: "Δεν επιθυμώ να συμμετάσχω",
+      declined: "Η συμμετοχή ακυρώθηκε. Μπορείτε να κλείσετε τη σελίδα.",
+      demoTitle: "Λίγα λόγια για εσάς", next: "Συνέχεια", required: "Παρακαλώ απαντήστε σε όλες τις ερωτήσεις.",
+      age: "Ηλικία", gender: "Φύλο", education: "Επίπεδο εκπαίδευσης", location: "Τοποθεσία (πόλη, χώρα)",
+      genderOpts: ["Άνδρας", "Γυναίκα", "Άλλο", "Προτιμώ να μην απαντήσω"],
+      eduOpts: ["Δημοτικό", "Δευτεροβάθμια", "Επαγγελματική κατάρτιση", "Πτυχίο ΑΕΙ/ΤΕΙ", "Μεταπτυχιακό/Διδακτορικό"],
+      choose: "— επιλέξτε —",
+      instrTitle: "Οδηγίες",
+      instr: n => "Στο πάνω μέρος της οθόνης θα εμφανίζεται το όνομα μιας χώρας. Πατήστε τη χώρα αυτή στον χάρτη. Συνολικά θα δείτε " + n + " χώρες. Απαντήστε όσο πιο σωστά και γρήγορα μπορείτε.",
+      instrZoom: "Μπορείτε να κάνετε ζουμ και μετακίνηση στον χάρτη.", instrNoZoom: "Η προβολή του χάρτη είναι σταθερή.",
+      start: "Έναρξη", find: "Βρείτε αυτή τη χώρα:", item: "Ερώτημα", recorded: "✓",
+      correct: "Σωστό ✓", wrong: (c, t) => "Αυτό ήταν: " + c + " — η σωστή απάντηση επισημαίνεται",
+      doneTitle: "Ευχαριστούμε!", doneDefault: "Οι απαντήσεις σας καταγράφηκαν. Μπορείτε να κλείσετε τη σελίδα.",
+      home: "Επιστροφή στην αρχή", notFound: "Δεν βρέθηκε μελέτη με αυτόν τον κωδικό."
+    }
+  };
+  const rt = k => (RSTR[lang] || RSTR.en)[k];
+
+  const CONSENT_TEMPLATE = "You are invited to take part in a research study on geographic knowledge.\n\nIf you agree to participate, you will first answer a few short questions about yourself, and then you will be shown the names of countries, one at a time. Your task is to locate each country on a world map by tapping or clicking it.\n\nYour responses are anonymous and will be used for research purposes only. Participation is voluntary and you may stop at any time by closing this page.\n\nIf you agree to participate, press the button below.";
+
+  // ================= Supabase backend + offline queue =================
+  const SB_URL = "https://ttttbaeyqpkjavdcpotx.supabase.co";
+  const SB_KEY = "sb_publishable_rGJM-aMTCw1lTnkxKVQDVg_WpTH6DIN";
+  const sb = supabase.createClient(SB_URL, SB_KEY);
+
+  const Q = {
+    _get() { try { return JSON.parse(localStorage.getItem("gqr-pending")) || []; } catch (e) { return []; } },
+    _set(a) { localStorage.setItem("gqr-pending", JSON.stringify(a)); },
+    count() { return this._get().length; },
+    push(op) { const a = this._get(); a.push(op); this._set(a); this.flush(); },
+    _flushing: false,
+    async flush() {
+      if (this._flushing || !navigator.onLine) { updateSyncBadge(); return; }
+      this._flushing = true;
+      try {
+        let a = this._get();
+        while (a.length) {
+          const op = a[0];
+          let err = null;
+          if (op.type === "session") ({ error: err } = await sb.from("sessions").upsert(op.payload));
+          else if (op.type === "session_update") ({ error: err } = await sb.from("sessions").update(op.payload.patch).eq("id", op.payload.id));
+          else if (op.type === "response") ({ error: err } = await sb.from("responses").insert(op.payload));
+          if (err) break;
+          a.shift();
+          this._set(a);
+        }
+      } finally {
+        this._flushing = false;
+        updateSyncBadge();
+      }
+    }
+  };
+  window.addEventListener("online", () => Q.flush());
+  setInterval(() => Q.flush(), 30000);
+
+  function updateSyncBadge() {
+    const n = Q.count();
+    const el = document.getElementById("sync-badge");
+    if (el) el.textContent = n ? n + " records waiting to upload" : "all data synced";
+    const p = document.getElementById("pending-note");
+    if (p) {
+      p.style.display = n ? "block" : "none";
+      if (n) p.textContent = n + " records are stored on this device and will upload automatically when online.";
+    }
+  }
+
+  const Store = {
+    _cache() { try { return JSON.parse(localStorage.getItem("gqr-quizcache")) || {}; } catch (e) { return {}; } },
+    cacheQuiz(q) { const a = this._cache(); a[q.code] = q; localStorage.setItem("gqr-quizcache", JSON.stringify(a)); },
+    cachedQuiz(code) { return this._cache()[String(code).toUpperCase()] || null; },
+    unpack(row) {
+      return Object.assign({ code: row.code, name: row.name }, row.config);
+    },
+    async getQuiz(code) {
+      code = String(code).toUpperCase();
+      try {
+        const { data, error } = await sb.from("quizzes").select("*").eq("code", code).maybeSingle();
+        if (error) throw error;
+        if (data) { const q = this.unpack(data); this.cacheQuiz(q); return q; }
+        return this.cachedQuiz(code);
+      } catch (e) { return this.cachedQuiz(code); }
+    },
+    async quizzes() {
+      const { data, error } = await sb.from("quizzes").select("*").order("created_at", { ascending: false });
+      if (error) throw error;
+      return data.map(r => this.unpack(r));
+    },
+    async saveQuiz(q) {
+      const row = { code: q.code, name: q.name, config: {
+        lang: q.lang, feedback: q.feedback, zoom: q.zoom, demographics: q.demographics,
+        custom: q.custom, consent: q.consent, done: q.done, countries: q.countries } };
+      const { error } = await sb.from("quizzes").upsert(row);
+      if (error) throw error;
+      this.cacheQuiz(q);
+    },
+    async deleteQuiz(code) {
+      const { error } = await sb.from("quizzes").delete().eq("code", code);
+      if (error) throw error;
+    },
+    addSession(s) {
+      Q.push({ type: "session", payload: {
+        id: s.id, quiz_code: s.code, demo: s.demo, custom: s.custom,
+        ua: s.ua, sw: s.sw, sh: s.sh,
+        started_at: new Date(s.start).toISOString(), complete: false } });
+    },
+    updateSession(id, patch) {
+      Q.push({ type: "session_update", payload: { id, patch: {
+        ended_at: new Date(patch.end).toISOString(), complete: !!patch.complete } } });
+    },
+    addResponse(r) {
+      Q.push({ type: "response", payload: {
+        session_id: r.sid, quiz_code: r.code, item: r.i + 1,
+        asked: r.asked, clicked: r.clicked, correct: r.correct, rt_ms: r.ms,
+        lon: r.lon, lat: r.lat, zoom_level: r.k } });
+    },
+    async sessionsFor(code) {
+      const { data, error } = await sb.from("sessions").select("*").eq("quiz_code", code);
+      if (error) throw error;
+      return data;
+    },
+    async responsesFor(code) {
+      const { data, error } = await sb.from("responses").select("*").eq("quiz_code", code)
+        .order("session_id").order("item");
+      if (error) throw error;
+      return data;
+    },
+    async allSessions() {
+      const { data, error } = await sb.from("sessions").select("quiz_code,complete");
+      if (error) throw error;
+      return data;
+    }
+  };
+
+  // ================= SVG scaffolding =================
+  const svg = d3.select("#map");
+  const defs = svg.append("defs");
+  const clipRect = defs.append("clipPath").attr("id", "frame-clip").append("rect");
+  const sea = svg.append("rect").attr("id", "sea");
+  const gClip = svg.append("g").attr("clip-path", "url(#frame-clip)");
+  const g = gClip.append("g");
+  const gCountries = g.append("g");
+  const gTerr = g.append("g");
+  const gLakes = g.append("g");
+  const gMarkers = g.append("g");
+  const frameBorder = svg.append("rect").attr("id", "frame-border");
+
+  let quizPool = [];
+  let territories = [];
+  let byName = {};
+  let study = null;
+  let editingCode = null;
+  let builderCountries = [];
+
+  // ================= Zoom =================
+  const markerR = k => Math.max(1.6, 4.8 / Math.sqrt(k));
+  const zoom = d3.zoom()
+    .scaleExtent([1, 60])
+    .on("zoom", ev => {
+      g.attr("transform", ev.transform);
+      gMarkers.selectAll(".marker").attr("r", markerR(ev.transform.k));
+    });
+  svg.call(zoom);
+
+  // ================= Feature preparation =================
+  function splitParts(f) {
+    const rule = PART_RULES[f.properties.name];
+    if (!rule) return [];
+    const polys = f.geometry.type === "Polygon"
+      ? [f.geometry.coordinates] : f.geometry.coordinates;
+    const keep = [], buckets = {};
+    for (const p of polys) {
+      const c = d3.geoCentroid({ type: "Polygon", coordinates: p });
+      const r = rule(c);
+      if (r === "keep") keep.push(p);
+      else if (r !== "drop") (buckets[r] = buckets[r] || []).push(p);
+    }
+    f.geometry = { type: "MultiPolygon", coordinates: keep };
+    return Object.entries(buckets).map(([name, coords]) => ({
+      type: "Feature",
+      properties: { name },
+      geometry: { type: "MultiPolygon", coordinates: coords }
+    }));
+  }
+
+  function largestPartAnchor(f) {
+    if (ANCHOR[f.properties.name]) return ANCHOR[f.properties.name];
+    const polys = f.geometry.type === "Polygon"
+      ? [f.geometry.coordinates] : f.geometry.coordinates;
+    let best = null, bestA = -1;
+    for (const p of polys) {
+      const geo = { type: "Polygon", coordinates: p };
+      const a = d3.geoArea(geo);
+      if (a > bestA) { bestA = a; best = geo; }
+    }
+    return d3.geoCentroid(best);
+  }
+
+  // ================= Layout (also runs on resize) =================
+  function layout() {
+    const wrap = document.getElementById("map-wrap");
+    const w = wrap.clientWidth, h = wrap.clientHeight;
+    svg.attr("viewBox", `0 0 ${w} ${h}`).attr("width", w).attr("height", h);
+    if (!quizPool.length) return;
+
+    const yT = millerY(LAT_TOP), yB = millerY(LAT_BOT);
+    const s = Math.min((w - 2 * MARGIN) / (2 * Math.PI), (h - 2 * MARGIN) / (yT - yB));
+    const ty = h / 2 + s * (yT + yB) / 2;
+    projection.scale(s).translate([w / 2, ty]);
+
+    const frame = {
+      x: w / 2 - s * Math.PI, y: ty - s * yT,
+      w: 2 * Math.PI * s, h: s * (yT - yB)
+    };
+    for (const r of [sea, clipRect, frameBorder]) {
+      r.attr("x", frame.x).attr("y", frame.y)
+       .attr("width", frame.w).attr("height", frame.h);
+    }
+    zoom.translateExtent([[frame.x, frame.y], [frame.x + frame.w, frame.y + frame.h]]);
+
+    g.selectAll(".country, .territory, .lake").attr("d", path);
+
+    const areaT = AREA_T * Math.pow(s / REF_SCALE, 2);
+    const smalls = quizPool.filter(f => path.area(f) < areaT);
+    gMarkers.selectAll(".marker")
+      .data(smalls, d => d.properties.name)
+      .join("circle")
+      .attr("class", "marker")
+      .attr("cx", d => projection(d.__anchor)[0])
+      .attr("cy", d => projection(d.__anchor)[1])
+      .attr("r", markerR(1))
+      .on("click", onCountryClick);
+
+    svg.call(zoom.transform, d3.zoomIdentity);
+  }
+  window.addEventListener("resize", layout);
+
+  // ================= Load map data =================
+  d3.json("https://cdn.jsdelivr.net/npm/world-atlas@2/countries-50m.json")
+    .then(world => {
+      let feats = topojson.feature(world, world.objects.countries).features
+        .filter(f => f.properties.name !== "Antarctica" && !DROP_FROM_MAP.has(f.properties.name));
+      for (const f of feats) {
+        if (GEO_PATCH[f.properties.name]) f.geometry = GEO_PATCH[f.properties.name];
+      }
+      let extras = [];
+      for (const f of feats) extras = extras.concat(splitParts(f));
+      feats = feats.concat(extras);
+      quizPool = feats.filter(f => !NOT_QUIZZABLE.has(f.properties.name));
+      territories = feats.filter(f => NOT_QUIZZABLE.has(f.properties.name));
+      for (const f of quizPool) { f.__anchor = largestPartAnchor(f); byName[f.properties.name] = f; }
+
+      gCountries.selectAll(".country").data(quizPool).join("path")
+        .attr("class", "country").on("click", onCountryClick);
+      gTerr.selectAll(".territory").data(territories).join("path")
+        .attr("class", f => "territory" + (NON_INTERACTIVE.has(f.properties.name) ? " mute" : ""))
+        .on("click", onCountryClick);
+      layout();
+      fillDatalist();
+      document.getElementById("loading").style.display = "none";
+      document.getElementById("home-actions").style.display = "block";
+      d3.json("https://cdn.jsdelivr.net/gh/martynafford/natural-earth-geojson@master/110m/physical/ne_110m_lakes.json")
+        .then(lk => {
+          const lakes = lk.features.filter(f => d3.geoArea(f) > 2e-4);
+          gLakes.selectAll(".lake").data(lakes).join("path").attr("class", "lake").attr("d", path);
+        }).catch(() => {});
+      if (location.hash.length > 1) tryJoin(location.hash.slice(1));
+    })
+    .catch(() => {
+      document.getElementById("loading").textContent =
+        "Could not load map data — check your internet connection and reload the page.";
+    });
+
+  sea.on("click", ev => { if (study && !study.locked) recordAnswer(ev, null); });
+
+  d3.select("#zoom-in").on("click", () => svg.transition().duration(250).call(zoom.scaleBy, 1.7));
+  d3.select("#zoom-out").on("click", () => svg.transition().duration(250).call(zoom.scaleBy, 1 / 1.7));
+  d3.select("#zoom-reset").on("click", () => svg.transition().duration(350).call(zoom.transform, d3.zoomIdentity));
+
+  function ensureVisible(f) {
+    const wrap = document.getElementById("map-wrap");
+    const w = wrap.clientWidth, h = wrap.clientHeight;
+    const t0 = d3.zoomTransform(svg.node());
+    const [[x0, y0], [x1, y1]] = path.bounds(f);
+    const visible = t0.applyX(x1) > 0 && t0.applyX(x0) < w && t0.applyY(y1) > 0 && t0.applyY(y0) < h;
+    if (visible) return;
+    const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
+    const t2 = d3.zoomIdentity.translate(w / 2 - t0.k * cx, h / 2 - t0.k * cy).scale(t0.k);
+    svg.transition().duration(650).call(zoom.transform, t2);
+  }
+
+  let toastTimer = null;
+  function toast(msg, kind) {
+    const el = document.getElementById("toast");
+    el.textContent = msg;
+    el.className = "show" + (kind ? " " + kind : "");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { el.className = ""; }, 1500);
+  }
+
+  // ================= Participant flow =================
+  function show(id) {
+    document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
+    if (id) document.getElementById(id).classList.add("active");
+  }
+
+  async function tryJoin(code) {
+    const quiz = await Store.getQuiz(code);
+    if (!quiz) { toast(rt("notFound"), "bad"); show("home-screen"); return; }
+    lang = quiz.lang || "en";
+    document.getElementById("consent-title").textContent = quiz.name;
+    document.getElementById("consent-body").textContent = quiz.consent || CONSENT_TEMPLATE;
+    document.getElementById("consent-yes").textContent = rt("agree");
+    document.getElementById("consent-no").textContent = rt("decline");
+    document.getElementById("consent-yes").onclick = () => demoForm(quiz);
+    document.getElementById("consent-no").onclick = () => {
+      show("done-screen");
+      document.getElementById("done-title").textContent = "";
+      document.getElementById("done-body").textContent = rt("declined");
+      document.getElementById("done-home").textContent = rt("home");
+    };
+    show("consent-screen");
+  }
+
+  function demoForm(quiz) {
+    const box = document.getElementById("demo-fields");
+    box.innerHTML = "";
+    document.getElementById("demo-title").textContent = rt("demoTitle");
+    document.getElementById("demo-next").textContent = rt("next");
+    const d = quiz.demographics || {};
+    const mk = (label, inner) => {
+      const div = document.createElement("div");
+      div.className = "field";
+      div.innerHTML = "<label>" + label + "</label>";
+      div.appendChild(inner);
+      box.appendChild(div);
+      return inner;
+    };
+    const sel = opts => {
+      const s = document.createElement("select");
+      s.innerHTML = "<option value=''>" + rt("choose") + "</option>" +
+        opts.map(o => "<option>" + o + "</option>").join("");
+      return s;
+    };
+    const fields = {};
+    if (d.age) { const i = document.createElement("input"); i.type = "number"; i.min = 5; i.max = 120; fields.age = mk(rt("age"), i); }
+    if (d.gender) fields.gender = mk(rt("gender"), sel(rt("genderOpts")));
+    if (d.education) fields.education = mk(rt("education"), sel(rt("eduOpts")));
+    if (d.location) { const i = document.createElement("input"); i.type = "text"; fields.location = mk(rt("location"), i); }
+    const customFields = [];
+    (quiz.custom || []).forEach(cq => {
+      const inner = cq.choices && cq.choices.length ? sel(cq.choices)
+        : (() => { const i = document.createElement("input"); i.type = "text"; return i; })();
+      customFields.push({ label: cq.label, el: mk(cq.label, inner) });
+    });
+    document.getElementById("demo-next").onclick = () => {
+      const demo = {}, custom = {};
+      for (const k in fields) {
+        if (!fields[k].value) { toast(rt("required"), "bad"); return; }
+        demo[k] = fields[k].value;
+      }
+      for (const cf of customFields) {
+        if (!cf.el.value) { toast(rt("required"), "bad"); return; }
+        custom[cf.label] = cf.el.value;
+      }
+      instructions(quiz, demo, custom);
+    };
+    show("demo-screen");
+  }
+
+  function instructions(quiz, demo, custom) {
+    document.getElementById("instr-title").textContent = rt("instrTitle");
+    document.getElementById("instr-body").textContent =
+      rt("instr")(quiz.countries.length) + " " + rt(quiz.zoom ? "instrZoom" : "instrNoZoom");
+    document.getElementById("start-btn").textContent = rt("start");
+    document.getElementById("start-btn").onclick = () => startStudy(quiz, demo, custom);
+    show("instr-screen");
+  }
+
+  function startStudy(quiz, demo, custom) {
+    const sid = "s" + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+    Store.addSession({
+      id: sid, code: quiz.code, demo, custom,
+      ua: navigator.userAgent, sw: screen.width, sh: screen.height,
+      start: Date.now(), end: null, complete: false
+    });
+    study = {
+      quiz, sid, i: 0, locked: false, qStart: 0,
+      items: quiz.countries.map(n => byName[n]).filter(Boolean)
+    };
+    show(null);
+    document.getElementById("header").classList.add("active");
+    document.getElementById("prompt").textContent = rt("find");
+    if (quiz.zoom) {
+      svg.call(zoom);
+      document.getElementById("zoom-controls").style.display = "flex";
+    } else {
+      svg.on(".zoom", null);
+      document.getElementById("zoom-controls").style.display = "none";
+    }
+    svg.call(zoom.transform, d3.zoomIdentity);
+    showItem();
+  }
+
+  function showItem() {
+    const target = study.items[study.i];
+    document.getElementById("target-name").textContent = displayName(target);
+    document.getElementById("item-count").textContent =
+      rt("item") + " " + (study.i + 1) + " / " + study.items.length;
+    study.locked = false;
+    study.qStart = performance.now();
+  }
+
+  function onCountryClick(ev, f) {
+    if (!study || study.locked) return;
+    ev.stopPropagation();
+    recordAnswer(ev, f);
+  }
+
+  function recordAnswer(ev, f) {
+    study.locked = true;
+    const ms = Math.round(performance.now() - study.qStart);
+    const target = study.items[study.i];
+    const [gx, gy] = d3.pointer(ev, g.node());
+    const ll = projection.invert([gx, gy]);
+    const k = d3.zoomTransform(svg.node()).k;
+    const correct = f === target;
+    Store.addResponse({
+      sid: study.sid, code: study.quiz.code, i: study.i,
+      asked: target.properties.name,
+      clicked: f ? f.properties.name : "(none)",
+      correct, ms,
+      lon: ll && isFinite(ll[0]) ? +ll[0].toFixed(4) : null,
+      lat: ll && isFinite(ll[1]) ? +ll[1].toFixed(4) : null,
+      k: +k.toFixed(2), t: Date.now()
+    });
+    if (study.quiz.feedback) {
+      const sel = f ? d3.selectAll(".country, .territory, .marker").filter(d => d === f) : d3.select(null);
+      if (correct) {
+        sel.classed("flash-good", true);
+        toast(rt("correct"), "good");
+        setTimeout(() => { sel.classed("flash-good", false); nextItem(); }, 700);
+      } else {
+        sel.classed("flash-bad", true);
+        const ts = d3.selectAll(".country, .marker").filter(d => d === target);
+        ts.classed("reveal", true);
+        ensureVisible(target);
+        toast(rt("wrong")(f ? displayName(f) : "—", displayName(target)), "bad");
+        setTimeout(() => {
+          sel.classed("flash-bad", false); ts.classed("reveal", false); nextItem();
+        }, 2000);
+      }
+    } else {
+      toast(rt("recorded"), "good");
+      setTimeout(nextItem, 350);
+    }
+  }
+
+  function nextItem() {
+    study.i++;
+    if (study.i >= study.items.length) endStudy();
+    else showItem();
+  }
+
+  function endStudy() {
+    Store.updateSession(study.sid, { end: Date.now(), complete: true });
+    setTimeout(updateSyncBadge, 800);
+    const quiz = study.quiz;
+    study = null;
+    document.getElementById("header").classList.remove("active");
+    document.getElementById("done-title").textContent = rt("doneTitle");
+    document.getElementById("done-body").textContent = quiz.done || rt("doneDefault");
+    document.getElementById("done-home").textContent = rt("home");
+    show("done-screen");
+  }
+
+  document.getElementById("done-home").addEventListener("click", () => {
+    lang = "en";
+    location.hash = "";
+    svg.call(zoom);
+    document.getElementById("zoom-controls").style.display = "flex";
+    svg.call(zoom.transform, d3.zoomIdentity);
+    show("home-screen");
+  });
+
+  document.getElementById("join-btn").addEventListener("click", () => {
+    const c = document.getElementById("code-input").value.trim();
+    if (c) tryJoin(c);
+  });
+  document.getElementById("code-input").addEventListener("keydown", ev => {
+    if (ev.key === "Enter") document.getElementById("join-btn").click();
+  });
+
+  // ================= Admin panel =================
+  async function openAdmin() {
+    updateSyncBadge();
+    renderQuizList();
+    show("admin-screen");
+  }
+  document.getElementById("admin-btn").addEventListener("click", async () => {
+    const { data } = await sb.auth.getSession();
+    if (data.session) openAdmin();
+    else show("login-screen");
+  });
+  document.getElementById("login-btn").addEventListener("click", async () => {
+    const email = document.getElementById("login-email").value.trim();
+    const pass = document.getElementById("login-pass").value;
+    if (!email || !pass) { toast("Enter email and password", "bad"); return; }
+    const { error } = await sb.auth.signInWithPassword({ email, password: pass });
+    if (error) { toast("Login failed: " + error.message, "bad"); return; }
+    document.getElementById("login-pass").value = "";
+    openAdmin();
+  });
+  document.getElementById("login-pass").addEventListener("keydown", ev => {
+    if (ev.key === "Enter") document.getElementById("login-btn").click();
+  });
+  document.getElementById("login-back").addEventListener("click", () => show("home-screen"));
+  document.getElementById("logout-btn").addEventListener("click", async () => {
+    await sb.auth.signOut();
+    show("home-screen");
+  });
+  document.getElementById("sync-now-btn").addEventListener("click", async () => {
+    await Q.flush();
+    toast(Q.count() ? Q.count() + " records still pending" : "All data synced", Q.count() ? "bad" : "good");
+  });
+  document.getElementById("admin-home-btn").addEventListener("click", () => show("home-screen"));
+  document.getElementById("new-quiz-btn").addEventListener("click", () => openBuilder(null));
+  document.getElementById("q-cancel").addEventListener("click", () => switchAdminView(false));
+
+  function switchAdminView(editing) {
+    document.getElementById("admin-list-view").style.display = editing ? "none" : "block";
+    document.getElementById("admin-edit-view").style.display = editing ? "block" : "none";
+    if (!editing) renderQuizList();
+  }
+
+  async function renderQuizList() {
+    const tbody = document.getElementById("quiz-rows");
+    tbody.innerHTML = "<tr><td colspan='6' style='color:var(--muted)'>Loading…</td></tr>";
+    let quizzes = [], sessions = [];
+    try {
+      quizzes = await Store.quizzes();
+      sessions = await Store.allSessions();
+    } catch (e) {
+      toast("Could not load quizzes — check your connection and login", "bad");
+    }
+    tbody.innerHTML = "";
+    document.getElementById("no-quizzes").style.display = quizzes.length ? "none" : "block";
+    for (const q of quizzes) {
+      const ses = sessions.filter(s => s.quiz_code === q.code);
+      const done = ses.filter(s => s.complete).length;
+      const tr = document.createElement("tr");
+      tr.innerHTML = "<td><a href='#' style='color:var(--accent)'>" + q.name + "</a></td>" +
+        "<td><b>" + q.code + "</b></td><td>" + (q.lang === "el" ? "ΕΛ" : "EN") + "</td>" +
+        "<td>" + q.countries.length + "</td><td>" + done + " / " + ses.length + "</td><td></td>";
+      tr.querySelector("a").addEventListener("click", ev => { ev.preventDefault(); openBuilder(q); });
+      const cell = tr.lastElementChild;
+      const mk = (label, fn) => {
+        const b = document.createElement("button");
+        b.className = "mini-btn"; b.textContent = label; b.style.marginRight = "5px";
+        b.addEventListener("click", fn);
+        cell.appendChild(b);
+      };
+      mk("Copy link", () => {
+        const link = location.href.split("#")[0] + "#" + q.code;
+        navigator.clipboard ? navigator.clipboard.writeText(link).then(() => toast("Link copied", "good"))
+          : prompt("Participant link:", link);
+      });
+      mk("Test run", () => { location.hash = q.code; tryJoin(q.code); });
+      mk("Export CSV", () => exportCSV(q.code));
+      mk("Delete", async () => {
+        if (!confirm("Delete quiz \"" + q.name + "\" and all its data?")) return;
+        try { await Store.deleteQuiz(q.code); } catch (e) { toast("Delete failed", "bad"); }
+        renderQuizList();
+      });
+      tbody.appendChild(tr);
+    }
+  }
+
+  function openBuilder(q) {
+    editingCode = q ? q.code : null;
+    document.getElementById("builder-title").textContent = q ? "Edit quiz — " + q.code : "New quiz";
+    document.getElementById("q-name").value = q ? q.name : "";
+    document.getElementById("q-lang").value = q ? q.lang : "en";
+    document.getElementById("q-feedback").checked = q ? !!q.feedback : false;
+    document.getElementById("q-zoom").checked = q ? !!q.zoom : true;
+    const d = q ? q.demographics : { age: true, gender: true, education: true, location: true };
+    document.getElementById("d-age").checked = !!d.age;
+    document.getElementById("d-gender").checked = !!d.gender;
+    document.getElementById("d-education").checked = !!d.education;
+    document.getElementById("d-location").checked = !!d.location;
+    document.getElementById("q-consent").value = q ? q.consent : CONSENT_TEMPLATE;
+    document.getElementById("q-done").value = q ? (q.done || "") : "";
+    document.getElementById("cq-rows").innerHTML = "";
+    (q && q.custom ? q.custom : []).forEach(c => addCqRow(c.label, (c.choices || []).join(", ")));
+    builderCountries = q ? q.countries.slice() : [];
+    renderCountryList();
+    switchAdminView(true);
+  }
+
+  function addCqRow(label, choices) {
+    const row = document.createElement("div");
+    row.className = "cq-row";
+    row.innerHTML = "<input type='text' class='cq-label' placeholder='Question, e.g., Native language'>" +
+      "<input type='text' class='cq-choices' placeholder='Choices, comma-separated (optional)'>";
+    row.querySelector(".cq-label").value = label || "";
+    row.querySelector(".cq-choices").value = choices || "";
+    const rm = document.createElement("button");
+    rm.className = "mini-btn"; rm.textContent = "×";
+    rm.addEventListener("click", () => row.remove());
+    row.appendChild(rm);
+    document.getElementById("cq-rows").appendChild(row);
+  }
+  document.getElementById("cq-add").addEventListener("click", () => addCqRow("", ""));
+
+  function fillDatalist() {
+    document.getElementById("dl-countries").innerHTML =
+      quizPool.map(f => "<option value=\"" + (NAMES[f.properties.name] ? NAMES[f.properties.name][0] : f.properties.name) + "\">").join("");
+  }
+  const displayOf = n => NAMES[n] ? NAMES[n][0] : n;
+  function findByDisplay(text) {
+    const t = text.trim().toLowerCase();
+    return quizPool.find(f => {
+      const n = f.properties.name;
+      return n.toLowerCase() === t ||
+        (NAMES[n] && (NAMES[n][0].toLowerCase() === t || NAMES[n][1].toLowerCase() === t));
+    });
+  }
+
+  function renderCountryList() {
+    const ol = document.getElementById("c-list");
+    ol.innerHTML = "";
+    document.getElementById("c-count").textContent = builderCountries.length;
+    builderCountries.forEach((n, idx) => {
+      const li = document.createElement("li");
+      li.innerHTML = "<span style='color:var(--muted);font-size:12px;width:26px'>" + (idx + 1) + ".</span>" +
+        "<span class='cname'>" + displayOf(n) + "</span>";
+      const mk = (label, fn) => {
+        const b = document.createElement("button");
+        b.textContent = label;
+        b.addEventListener("click", fn);
+        li.appendChild(b);
+      };
+      mk("↑", () => { if (idx > 0) { [builderCountries[idx - 1], builderCountries[idx]] = [builderCountries[idx], builderCountries[idx - 1]]; renderCountryList(); } });
+      mk("↓", () => { if (idx < builderCountries.length - 1) { [builderCountries[idx + 1], builderCountries[idx]] = [builderCountries[idx], builderCountries[idx + 1]]; renderCountryList(); } });
+      mk("×", () => { builderCountries.splice(idx, 1); renderCountryList(); });
+      ol.appendChild(li);
+    });
+  }
+
+  document.getElementById("tier-add").addEventListener("click", () => {
+    const v = document.getElementById("tier-sel").value;
+    const inEasy = new Set(TIERS.easy), inMod = new Set(TIERS.moderate);
+    let names;
+    if (v === "easy") names = TIERS.easy.slice();
+    else if (v === "moderate") names = TIERS.moderate.slice();
+    else if (v === "hard") names = quizPool.map(f => f.properties.name).filter(n => !inEasy.has(n) && !inMod.has(n));
+    else names = quizPool.map(f => f.properties.name);
+    names.sort((a, b) => displayOf(a).localeCompare(displayOf(b)));
+    for (const n of names) if (!builderCountries.includes(n)) builderCountries.push(n);
+    renderCountryList();
+  });
+  document.getElementById("c-add").addEventListener("click", () => {
+    const f = findByDisplay(document.getElementById("c-search").value);
+    if (!f) { toast("Country not recognized", "bad"); return; }
+    if (!builderCountries.includes(f.properties.name)) builderCountries.push(f.properties.name);
+    document.getElementById("c-search").value = "";
+    renderCountryList();
+  });
+  document.getElementById("c-shuffle").addEventListener("click", () => {
+    for (let i = builderCountries.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [builderCountries[i], builderCountries[j]] = [builderCountries[j], builderCountries[i]];
+    }
+    renderCountryList();
+  });
+  document.getElementById("c-clear").addEventListener("click", () => { builderCountries = []; renderCountryList(); });
+
+  function genCode() {
+    const chars = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
+    return Array.from({ length: 6 }, () => chars[Math.floor(Math.random() * chars.length)]).join("");
+  }
+
+  document.getElementById("q-save").addEventListener("click", async () => {
+    const name = document.getElementById("q-name").value.trim();
+    if (!name) { toast("Give the quiz a name", "bad"); return; }
+    if (!builderCountries.length) { toast("Add at least one country", "bad"); return; }
+    const custom = [];
+    document.querySelectorAll("#cq-rows .cq-row").forEach(row => {
+      const label = row.querySelector(".cq-label").value.trim();
+      if (!label) return;
+      const ch = row.querySelector(".cq-choices").value.split(",").map(s => s.trim()).filter(Boolean);
+      custom.push({ label, choices: ch.length ? ch : null });
+    });
+    const quiz = {
+      code: editingCode || genCode(),
+      name,
+      lang: document.getElementById("q-lang").value,
+      feedback: document.getElementById("q-feedback").checked,
+      zoom: document.getElementById("q-zoom").checked,
+      demographics: {
+        age: document.getElementById("d-age").checked,
+        gender: document.getElementById("d-gender").checked,
+        education: document.getElementById("d-education").checked,
+        location: document.getElementById("d-location").checked
+      },
+      custom,
+      consent: document.getElementById("q-consent").value,
+      done: document.getElementById("q-done").value.trim(),
+      countries: builderCountries.slice()
+    };
+    try {
+      await Store.saveQuiz(quiz);
+      toast("Quiz saved — code " + quiz.code, "good");
+      switchAdminView(false);
+    } catch (e) {
+      toast("Save failed — check connection and login", "bad");
+    }
+  });
+
+  // ================= CSV export =================
+  function csvCell(v) {
+    if (v === null || v === undefined) return "";
+    const s = String(v);
+    return /[",\n;]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+  }
+  async function exportCSV(code) {
+    let quiz, sessions, responses;
+    try {
+      quiz = await Store.getQuiz(code);
+      sessions = await Store.sessionsFor(code);
+      responses = await Store.responsesFor(code);
+    } catch (e) {
+      toast("Export failed — check connection and login", "bad");
+      return;
+    }
+    const customLabels = (quiz.custom || []).map(c => c.label);
+    const head = ["session_id", "quiz_code", "quiz_name", "session_start", "session_end", "complete",
+      "age", "gender", "education", "location", ...customLabels,
+      "screen_w", "screen_h", "user_agent",
+      "item", "asked", "asked_en", "clicked", "clicked_en", "correct", "rt_ms",
+      "click_lon", "click_lat", "zoom_level", "error_km"];
+    const rows = [head.join(",")];
+    for (const r of responses) {
+      const s = sessions.find(x => x.id === r.session_id) || {};
+      const demo = s.demo || {}, cust = s.custom || {};
+      let errKm = "";
+      if (r.correct) errKm = 0;
+      else if (r.lon !== null && r.lon !== undefined && byName[r.asked]) {
+        errKm = Math.round(d3.geoDistance([r.lon, r.lat], d3.geoCentroid(byName[r.asked])) * 6371);
+      }
+      rows.push([
+        r.session_id, code, quiz.name, s.started_at || "", s.ended_at || "", s.complete ? 1 : 0,
+        demo.age || "", demo.gender || "", demo.education || "", demo.location || "",
+        ...customLabels.map(l => cust[l] || ""),
+        s.sw || "", s.sh || "", s.ua || "",
+        r.item, r.asked, displayOf(r.asked), r.clicked,
+        r.clicked === "(none)" ? "(none)" : displayOf(r.clicked),
+        r.correct ? 1 : 0, r.rt_ms, r.lon ?? "", r.lat ?? "", r.zoom_level ?? "", errKm
+      ].map(csvCell).join(","));
+    }
+    const blob = new Blob(["﻿" + rows.join("\n")], { type: "text/csv;charset=utf-8" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "geoquiz_" + code + "_responses.csv";
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }
+
+})();
+</script>
+</body>
+</html>

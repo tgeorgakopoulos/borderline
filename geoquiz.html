@@ -1,0 +1,1112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>GeoQuiz — Find the Country</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/topojson/3.0.2/topojson.min.js"></script>
+<style>
+  :root {
+    --ink: #1e293b;
+    --muted: #64748b;
+    --line: #cbd5e1;
+    --frame: #94a3b8;
+    --sea: #edf4f9;
+    --accent: #2563eb;
+    --good: #16a34a;
+    --good-soft: #86efac;
+    --bad: #dc2626;
+    --bad-soft: #fca5a5;
+    --hover: #dbeafe;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; overflow: hidden; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background: #ffffff;
+    color: var(--ink);
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ---------- Header ---------- */
+  #header {
+    display: none;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 16px;
+    border-bottom: 1px solid #e2e8f0;
+    flex-wrap: wrap;
+  }
+  #header.active { display: flex; }
+  #prompt { font-size: 15px; color: var(--muted); }
+  #target-name {
+    font-size: clamp(20px, 3.5vw, 28px);
+    font-weight: 700;
+    color: var(--ink);
+  }
+  #stats {
+    display: flex;
+    gap: 18px;
+    font-size: 14px;
+    color: var(--muted);
+    align-items: center;
+  }
+  #stats b { color: var(--ink); font-size: 17px; }
+  #quit-btn {
+    border: 1px solid var(--line);
+    background: #fff;
+    color: var(--muted);
+    border-radius: 8px;
+    padding: 6px 12px;
+    font-size: 13px;
+    cursor: pointer;
+  }
+  #quit-btn:hover { border-color: var(--muted); color: var(--ink); }
+
+  /* ---------- Language toggle ---------- */
+  #lang-toggle {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    z-index: 20;
+    display: flex;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    overflow: hidden;
+    background: #fff;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+  }
+  .lang-btn {
+    border: none;
+    background: #fff;
+    color: var(--muted);
+    padding: 7px 13px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .lang-btn.active { background: var(--accent); color: #fff; }
+
+  /* ---------- Map ---------- */
+  #map-wrap { flex: 1; position: relative; min-height: 0; }
+  #map { width: 100%; height: 100%; display: block; touch-action: none; }
+  #sea { fill: var(--sea); }
+  #frame-border {
+    fill: none;
+    stroke: var(--frame);
+    stroke-width: 1.5;
+    pointer-events: none;
+  }
+  .country, .territory {
+    fill: #ffffff;
+    stroke: var(--line);
+    stroke-width: 0.6;
+    vector-effect: non-scaling-stroke;
+    cursor: pointer;
+    transition: fill 0.12s;
+  }
+  .country:hover, .territory:hover { fill: var(--hover); }
+  .territory.mute { pointer-events: none; }
+  .lake {
+    fill: var(--sea);
+    stroke: var(--line);
+    stroke-width: 0.5;
+    vector-effect: non-scaling-stroke;
+    pointer-events: none;
+  }
+  .marker {
+    fill: #ffffff;
+    stroke: var(--muted);
+    stroke-width: 1.2;
+    vector-effect: non-scaling-stroke;
+    cursor: pointer;
+    transition: fill 0.12s;
+  }
+  .marker:hover { fill: var(--hover); }
+  .flash-good { fill: var(--good-soft) !important; stroke: var(--good) !important; }
+  .flash-bad  { fill: var(--bad-soft) !important; stroke: var(--bad) !important; }
+  .reveal { fill: var(--good-soft) !important; stroke: var(--good) !important; animation: pulse 0.7s ease-in-out 2; }
+  @keyframes pulse { 50% { fill-opacity: 0.35; } }
+
+  #zoom-controls {
+    position: absolute;
+    right: 14px;
+    bottom: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  #zoom-controls button {
+    width: 42px; height: 42px;
+    border: 1px solid var(--line);
+    background: #fff;
+    border-radius: 10px;
+    font-size: 20px;
+    color: var(--ink);
+    cursor: pointer;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+  }
+  #zoom-controls button:hover { background: #f1f5f9; }
+
+  #toast {
+    position: absolute;
+    left: 50%;
+    top: 14px;
+    transform: translateX(-50%);
+    background: var(--ink);
+    color: #fff;
+    padding: 10px 18px;
+    border-radius: 10px;
+    font-size: 15px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s;
+    max-width: 90%;
+    text-align: center;
+  }
+  #toast.show { opacity: 1; }
+  #toast.good { background: var(--good); }
+  #toast.bad  { background: var(--bad); }
+
+  /* ---------- Overlay screens ---------- */
+  .screen {
+    position: absolute;
+    inset: 0;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255,255,255,0.96);
+    z-index: 10;
+    overflow-y: auto;
+  }
+  .screen.active { display: flex; }
+  .panel { max-width: 560px; width: 92%; text-align: center; padding: 32px 8px; }
+  .panel h1 { font-size: clamp(28px, 5vw, 40px); margin-bottom: 6px; }
+  .panel .sub { color: var(--muted); font-size: 16px; margin-bottom: 30px; }
+  .mode-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 12px;
+    margin-bottom: 18px;
+  }
+  .mode-btn {
+    border: 1.5px solid var(--line);
+    background: #fff;
+    border-radius: 14px;
+    padding: 18px 14px;
+    cursor: pointer;
+    text-align: left;
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+  .mode-btn:hover { border-color: var(--accent); box-shadow: 0 2px 10px rgba(37,99,235,0.12); }
+  .mode-btn .m-title { font-size: 18px; font-weight: 700; margin-bottom: 3px; }
+  .mode-btn .m-desc { font-size: 13px; color: var(--muted); }
+  #diff-row {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+  }
+  .diff-btn {
+    border: 1.5px solid var(--line);
+    background: #fff;
+    border-radius: 999px;
+    padding: 8px 16px;
+    font-size: 14px;
+    cursor: pointer;
+    color: var(--muted);
+  }
+  .diff-btn.active {
+    border-color: var(--accent);
+    color: var(--accent);
+    font-weight: 700;
+    background: #eff6ff;
+  }
+  .diff-btn .d-count { margin-left: 6px; font-size: 12px; opacity: 0.85; }
+  .footnote { font-size: 12px; color: var(--muted); }
+
+  /* ---------- Results ---------- */
+  #results-panel h1 { margin-bottom: 2px; }
+  .big-score { font-size: 56px; font-weight: 800; color: var(--accent); margin: 10px 0 2px; }
+  .result-stats {
+    display: flex;
+    justify-content: center;
+    gap: 28px;
+    margin: 18px 0 22px;
+    font-size: 14px;
+    color: var(--muted);
+  }
+  .result-stats b { display: block; font-size: 20px; color: var(--ink); }
+  #mistakes {
+    text-align: left;
+    font-size: 14px;
+    max-height: 180px;
+    overflow-y: auto;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 10px 14px;
+    margin-bottom: 22px;
+  }
+  #mistakes div { padding: 3px 0; color: var(--muted); }
+  #mistakes b { color: var(--bad); font-weight: 600; }
+  .btn-row { display: flex; gap: 10px; justify-content: center; }
+  .primary-btn, .ghost-btn {
+    border-radius: 10px;
+    padding: 12px 22px;
+    font-size: 15px;
+    cursor: pointer;
+  }
+  .primary-btn { background: var(--accent); color: #fff; border: none; }
+  .primary-btn:hover { background: #1d4ed8; }
+  .ghost-btn { background: #fff; color: var(--ink); border: 1.5px solid var(--line); }
+  .ghost-btn:hover { border-color: var(--muted); }
+
+  #loading { color: var(--muted); font-size: 16px; }
+</style>
+</head>
+<body>
+
+<div id="header">
+  <div>
+    <div id="prompt" data-i18n="find">Find this country:</div>
+    <div id="target-name">—</div>
+  </div>
+  <div id="stats">
+    <div><span data-i18n="score">Score</span> <b id="score">0</b></div>
+    <div><span id="progress-label">Question</span> <b id="progress">1</b></div>
+    <div><span data-i18n="best">Best streak</span> <b id="streak">0</b></div>
+    <button id="quit-btn" data-i18n="endGame">End game</button>
+  </div>
+</div>
+
+<div id="map-wrap">
+  <svg id="map"></svg>
+  <div id="lang-toggle">
+    <button class="lang-btn" data-lang="en">EN</button>
+    <button class="lang-btn" data-lang="el">ΕΛ</button>
+  </div>
+  <div id="zoom-controls">
+    <button id="zoom-in" aria-label="Zoom in">+</button>
+    <button id="zoom-out" aria-label="Zoom out">−</button>
+    <button id="zoom-reset" aria-label="Reset view" style="font-size:14px">⌂</button>
+  </div>
+  <div id="toast"></div>
+
+  <!-- Start screen -->
+  <div class="screen active" id="start-screen">
+    <div class="panel">
+      <h1>🌍 GeoQuiz</h1>
+      <p class="sub" data-i18n="sub">A country's name appears — click it on the map.<br>Small island nations are shown as circles. Scroll or pinch to zoom, drag to pan.</p>
+      <div id="loading" data-i18n="loading">Loading world map…</div>
+      <div id="diff-row" style="display:none">
+        <button class="diff-btn" data-diff="easy"><span class="d-label"></span><span class="d-count"></span></button>
+        <button class="diff-btn" data-diff="moderate"><span class="d-label"></span><span class="d-count"></span></button>
+        <button class="diff-btn" data-diff="all"><span class="d-label"></span><span class="d-count"></span></button>
+      </div>
+      <div class="mode-grid" id="mode-grid" style="display:none">
+        <button class="mode-btn" data-mode="10"><div class="m-title" data-i18n="m10">Quick — 10</div><div class="m-desc" data-i18n="m10d">10 random countries</div></button>
+        <button class="mode-btn" data-mode="20"><div class="m-title" data-i18n="m20">Classic — 20</div><div class="m-desc" data-i18n="m20d">20 random countries</div></button>
+        <button class="mode-btn" data-mode="marathon"><div class="m-title" data-i18n="mMara">Marathon</div><div class="m-desc" id="mara-desc"></div></button>
+        <button class="mode-btn" data-mode="survival"><div class="m-title" data-i18n="mSurv">Survival ∞</div><div class="m-desc"><span data-i18n="mSurvD">Play until your first mistake. High score: </span><span id="hiscore">0</span></div></button>
+      </div>
+      <p class="footnote" data-i18n="footnote">Prototype v0.6 — research mode coming next.</p>
+    </div>
+  </div>
+
+  <!-- Results screen -->
+  <div class="screen" id="results-screen">
+    <div class="panel" id="results-panel">
+      <h1 id="results-title">Results</h1>
+      <div class="big-score" id="final-score">0</div>
+      <div class="sub" id="final-sub"></div>
+      <div class="result-stats">
+        <div><b id="r-accuracy">—</b><span data-i18n="accuracy">Accuracy</span></div>
+        <div><b id="r-time">—</b><span data-i18n="avgTime">Avg. time</span></div>
+        <div><b id="r-streak">—</b><span data-i18n="best">Best streak</span></div>
+      </div>
+      <div id="mistakes"></div>
+      <div class="btn-row">
+        <button class="primary-btn" id="again-btn" data-i18n="again">Play again</button>
+        <button class="ghost-btn" id="menu-btn" data-i18n="change">Change mode</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  // ================= Languages =================
+  const STR = {
+    en: {
+      sub: "A country's name appears — click it on the map.<br>Small island nations are shown as circles. Scroll or pinch to zoom, drag to pan.",
+      loading: "Loading world map…",
+      loadError: "Could not load map data — check your internet connection and reload the page.",
+      find: "Find this country:",
+      score: "Score", question: "Question", streakLbl: "Streak", best: "Best streak",
+      endGame: "End game",
+      m10: "Quick — 10", m10d: "10 random countries",
+      m20: "Classic — 20", m20d: "20 random countries",
+      mMara: "Marathon", maraD: n => "All " + n + " countries in one round",
+      mSurv: "Survival ∞", mSurvD: "Play until your first mistake. High score: ",
+      diffEasy: "Easy", diffMod: "Moderate", diffAll: "All countries",
+      footnote: "Prototype v0.6 — research mode coming next.",
+      results: "Results", gameOver: "Game over!", survEnd: "Survival ended",
+      accuracy: "Accuracy", avgTime: "Avg. time",
+      correctToast: n => "Correct! " + n + " ✓",
+      wrongToast: (c, t) => "That was " + c + " — " + t + " is highlighted",
+      perfect: "Perfect round! 🏆", excellent: "Excellent!", good: "Good effort!", keep: "Keep exploring!",
+      newHi: "🏆 New high score!", hi: "High score: ",
+      mistakes: "Mistakes",
+      mLine: (a, c) => "Asked <b>" + a + "</b> — you clicked " + c,
+      again: "Play again", change: "Change mode"
+    },
+    el: {
+      sub: "Εμφανίζεται το όνομα μιας χώρας — πάτησέ τη στον χάρτη.<br>Τα μικρά νησιωτικά κράτη εμφανίζονται ως κύκλοι. Ζουμ με τροχό ή τσίμπημα, σύρσιμο για μετακίνηση.",
+      loading: "Φόρτωση παγκόσμιου χάρτη…",
+      loadError: "Δεν ήταν δυνατή η φόρτωση του χάρτη — έλεγξε τη σύνδεση στο διαδίκτυο και ανανέωσε τη σελίδα.",
+      find: "Βρες αυτή τη χώρα:",
+      score: "Σκορ", question: "Ερώτηση", streakLbl: "Σερί", best: "Καλύτερο σερί",
+      endGame: "Τερματισμός",
+      m10: "Γρήγορο — 10", m10d: "10 τυχαίες χώρες",
+      m20: "Κλασικό — 20", m20d: "20 τυχαίες χώρες",
+      mMara: "Μαραθώνιος", maraD: n => "Όλες οι " + n + " χώρες σε έναν γύρο",
+      mSurv: "Επιβίωση ∞", mSurvD: "Παίξε μέχρι το πρώτο λάθος. Ρεκόρ: ",
+      diffEasy: "Εύκολο", diffMod: "Μέτριο", diffAll: "Όλες οι χώρες",
+      footnote: "Πρωτότυπο v0.6 — ερευνητική λειτουργία σύντομα.",
+      results: "Αποτελέσματα", gameOver: "Τέλος παιχνιδιού!", survEnd: "Τέλος επιβίωσης",
+      accuracy: "Ακρίβεια", avgTime: "Μέσος χρόνος",
+      correctToast: n => "Σωστά! " + n + " ✓",
+      wrongToast: (c, t) => "Επέλεξες: " + c + " — σωστή απάντηση: " + t,
+      perfect: "Τέλειος γύρος! 🏆", excellent: "Εξαιρετικά!", good: "Καλή προσπάθεια!", keep: "Συνέχισε την εξερεύνηση!",
+      newHi: "🏆 Νέο ρεκόρ!", hi: "Ρεκόρ: ",
+      mistakes: "Λάθη",
+      mLine: (a, c) => "Ζητήθηκε: <b>" + a + "</b> — επέλεξες: " + c,
+      again: "Παίξε ξανά", change: "Αλλαγή λειτουργίας"
+    }
+  };
+  let lang = "en";
+  try { lang = localStorage.getItem("geoquiz-lang") || "en"; } catch (e) {}
+  if (!STR[lang]) lang = "en";
+  const t = key => STR[lang][key];
+
+  // ================= Country names: dataset name -> [English, Greek] =================
+  const NAMES = {
+    "Afghanistan": ["Afghanistan", "Αφγανιστάν"],
+    "Albania": ["Albania", "Αλβανία"],
+    "Algeria": ["Algeria", "Αλγερία"],
+    "Andorra": ["Andorra", "Ανδόρα"],
+    "Angola": ["Angola", "Αγκόλα"],
+    "Antigua and Barb.": ["Antigua and Barbuda", "Αντίγκουα και Μπαρμπούντα"],
+    "Argentina": ["Argentina", "Αργεντινή"],
+    "Armenia": ["Armenia", "Αρμενία"],
+    "Australia": ["Australia", "Αυστραλία"],
+    "Austria": ["Austria", "Αυστρία"],
+    "Azerbaijan": ["Azerbaijan", "Αζερμπαϊτζάν"],
+    "Bahamas": ["Bahamas", "Μπαχάμες"],
+    "Bahrain": ["Bahrain", "Μπαχρέιν"],
+    "Bangladesh": ["Bangladesh", "Μπανγκλαντές"],
+    "Barbados": ["Barbados", "Μπαρμπάντος"],
+    "Belarus": ["Belarus", "Λευκορωσία"],
+    "Belgium": ["Belgium", "Βέλγιο"],
+    "Belize": ["Belize", "Μπελίζ"],
+    "Benin": ["Benin", "Μπενίν"],
+    "Bhutan": ["Bhutan", "Μπουτάν"],
+    "Bolivia": ["Bolivia", "Βολιβία"],
+    "Bosnia and Herz.": ["Bosnia and Herzegovina", "Βοσνία και Ερζεγοβίνη"],
+    "Botswana": ["Botswana", "Μποτσουάνα"],
+    "Brazil": ["Brazil", "Βραζιλία"],
+    "Brunei": ["Brunei", "Μπρουνέι"],
+    "Bulgaria": ["Bulgaria", "Βουλγαρία"],
+    "Burkina Faso": ["Burkina Faso", "Μπουρκίνα Φάσο"],
+    "Burundi": ["Burundi", "Μπουρούντι"],
+    "Cabo Verde": ["Cabo Verde", "Πράσινο Ακρωτήριο"],
+    "Cape Verde": ["Cabo Verde", "Πράσινο Ακρωτήριο"],
+    "Cambodia": ["Cambodia", "Καμπότζη"],
+    "Cameroon": ["Cameroon", "Καμερούν"],
+    "Canada": ["Canada", "Καναδάς"],
+    "Central African Rep.": ["Central African Republic", "Κεντροαφρικανική Δημοκρατία"],
+    "Chad": ["Chad", "Τσαντ"],
+    "Chile": ["Chile", "Χιλή"],
+    "China": ["China", "Κίνα"],
+    "Colombia": ["Colombia", "Κολομβία"],
+    "Comoros": ["Comoros", "Κομόρες"],
+    "Congo": ["Republic of the Congo", "Δημοκρατία του Κονγκό"],
+    "Costa Rica": ["Costa Rica", "Κόστα Ρίκα"],
+    "Croatia": ["Croatia", "Κροατία"],
+    "Cuba": ["Cuba", "Κούβα"],
+    "Cyprus": ["Cyprus", "Κύπρος"],
+    "Czechia": ["Czechia", "Τσεχία"],
+    "Czech Rep.": ["Czechia", "Τσεχία"],
+    "Côte d'Ivoire": ["Côte d'Ivoire", "Ακτή Ελεφαντοστού"],
+    "Dem. Rep. Congo": ["Democratic Republic of the Congo", "Λαϊκή Δημοκρατία του Κονγκό"],
+    "Denmark": ["Denmark", "Δανία"],
+    "Djibouti": ["Djibouti", "Τζιμπουτί"],
+    "Dominica": ["Dominica", "Ντομίνικα"],
+    "Dominican Rep.": ["Dominican Republic", "Δομινικανή Δημοκρατία"],
+    "Ecuador": ["Ecuador", "Ισημερινός"],
+    "Egypt": ["Egypt", "Αίγυπτος"],
+    "El Salvador": ["El Salvador", "Ελ Σαλβαδόρ"],
+    "Eq. Guinea": ["Equatorial Guinea", "Ισημερινή Γουινέα"],
+    "Eritrea": ["Eritrea", "Ερυθραία"],
+    "Estonia": ["Estonia", "Εσθονία"],
+    "Ethiopia": ["Ethiopia", "Αιθιοπία"],
+    "Fiji": ["Fiji", "Φίτζι"],
+    "Finland": ["Finland", "Φινλανδία"],
+    "France": ["France", "Γαλλία"],
+    "Gabon": ["Gabon", "Γκαμπόν"],
+    "Gambia": ["Gambia", "Γκάμπια"],
+    "Georgia": ["Georgia", "Γεωργία"],
+    "Germany": ["Germany", "Γερμανία"],
+    "Ghana": ["Ghana", "Γκάνα"],
+    "Greece": ["Greece", "Ελλάδα"],
+    "Grenada": ["Grenada", "Γρενάδα"],
+    "Guatemala": ["Guatemala", "Γουατεμάλα"],
+    "Guinea": ["Guinea", "Γουινέα"],
+    "Guinea-Bissau": ["Guinea-Bissau", "Γουινέα-Μπισάου"],
+    "Guyana": ["Guyana", "Γουιάνα"],
+    "Haiti": ["Haiti", "Αϊτή"],
+    "Honduras": ["Honduras", "Ονδούρα"],
+    "Hungary": ["Hungary", "Ουγγαρία"],
+    "Iceland": ["Iceland", "Ισλανδία"],
+    "India": ["India", "Ινδία"],
+    "Indonesia": ["Indonesia", "Ινδονησία"],
+    "Iran": ["Iran", "Ιράν"],
+    "Iraq": ["Iraq", "Ιράκ"],
+    "Ireland": ["Ireland", "Ιρλανδία"],
+    "Israel": ["Israel", "Ισραήλ"],
+    "Italy": ["Italy", "Ιταλία"],
+    "Jamaica": ["Jamaica", "Τζαμάικα"],
+    "Japan": ["Japan", "Ιαπωνία"],
+    "Jordan": ["Jordan", "Ιορδανία"],
+    "Kazakhstan": ["Kazakhstan", "Καζακστάν"],
+    "Kenya": ["Kenya", "Κένυα"],
+    "Kiribati": ["Kiribati", "Κιριμπάτι"],
+    "Kosovo": ["Kosovo", "Κόσοβο"],
+    "Kuwait": ["Kuwait", "Κουβέιτ"],
+    "Kyrgyzstan": ["Kyrgyzstan", "Κιργιζία"],
+    "Laos": ["Laos", "Λάος"],
+    "Lao PDR": ["Laos", "Λάος"],
+    "Latvia": ["Latvia", "Λετονία"],
+    "Lebanon": ["Lebanon", "Λίβανος"],
+    "Lesotho": ["Lesotho", "Λεσότο"],
+    "Liberia": ["Liberia", "Λιβερία"],
+    "Libya": ["Libya", "Λιβύη"],
+    "Liechtenstein": ["Liechtenstein", "Λιχτενστάιν"],
+    "Lithuania": ["Lithuania", "Λιθουανία"],
+    "Luxembourg": ["Luxembourg", "Λουξεμβούργο"],
+    "Macedonia": ["North Macedonia", "Βόρεια Μακεδονία"],
+    "North Macedonia": ["North Macedonia", "Βόρεια Μακεδονία"],
+    "Madagascar": ["Madagascar", "Μαδαγασκάρη"],
+    "Malawi": ["Malawi", "Μαλάουι"],
+    "Malaysia": ["Malaysia", "Μαλαισία"],
+    "Maldives": ["Maldives", "Μαλδίβες"],
+    "Mali": ["Mali", "Μάλι"],
+    "Malta": ["Malta", "Μάλτα"],
+    "Marshall Is.": ["Marshall Islands", "Νήσοι Μάρσαλ"],
+    "Mauritania": ["Mauritania", "Μαυριτανία"],
+    "Mauritius": ["Mauritius", "Μαυρίκιος"],
+    "Mexico": ["Mexico", "Μεξικό"],
+    "Micronesia": ["Micronesia", "Μικρονησία"],
+    "Moldova": ["Moldova", "Μολδαβία"],
+    "Monaco": ["Monaco", "Μονακό"],
+    "Mongolia": ["Mongolia", "Μογγολία"],
+    "Montenegro": ["Montenegro", "Μαυροβούνιο"],
+    "Morocco": ["Morocco", "Μαρόκο"],
+    "Mozambique": ["Mozambique", "Μοζαμβίκη"],
+    "Myanmar": ["Myanmar", "Μιανμάρ"],
+    "Namibia": ["Namibia", "Ναμίμπια"],
+    "Nauru": ["Nauru", "Ναουρού"],
+    "Nepal": ["Nepal", "Νεπάλ"],
+    "Netherlands": ["Netherlands", "Ολλανδία"],
+    "New Zealand": ["New Zealand", "Νέα Ζηλανδία"],
+    "Nicaragua": ["Nicaragua", "Νικαράγουα"],
+    "Niger": ["Niger", "Νίγηρας"],
+    "Nigeria": ["Nigeria", "Νιγηρία"],
+    "North Korea": ["North Korea", "Βόρεια Κορέα"],
+    "Dem. Rep. Korea": ["North Korea", "Βόρεια Κορέα"],
+    "Norway": ["Norway", "Νορβηγία"],
+    "Oman": ["Oman", "Ομάν"],
+    "Pakistan": ["Pakistan", "Πακιστάν"],
+    "Palau": ["Palau", "Παλάου"],
+    "Palestine": ["Palestine", "Παλαιστίνη"],
+    "Panama": ["Panama", "Παναμάς"],
+    "Papua New Guinea": ["Papua New Guinea", "Παπούα Νέα Γουινέα"],
+    "Paraguay": ["Paraguay", "Παραγουάη"],
+    "Peru": ["Peru", "Περού"],
+    "Philippines": ["Philippines", "Φιλιππίνες"],
+    "Poland": ["Poland", "Πολωνία"],
+    "Portugal": ["Portugal", "Πορτογαλία"],
+    "Qatar": ["Qatar", "Κατάρ"],
+    "Romania": ["Romania", "Ρουμανία"],
+    "Russia": ["Russia", "Ρωσία"],
+    "Rwanda": ["Rwanda", "Ρουάντα"],
+    "S. Sudan": ["South Sudan", "Νότιο Σουδάν"],
+    "Saint Lucia": ["Saint Lucia", "Αγία Λουκία"],
+    "Samoa": ["Samoa", "Σαμόα"],
+    "San Marino": ["San Marino", "Άγιος Μαρίνος"],
+    "Saudi Arabia": ["Saudi Arabia", "Σαουδική Αραβία"],
+    "Senegal": ["Senegal", "Σενεγάλη"],
+    "Serbia": ["Serbia", "Σερβία"],
+    "Seychelles": ["Seychelles", "Σεϋχέλλες"],
+    "Sierra Leone": ["Sierra Leone", "Σιέρα Λεόνε"],
+    "Singapore": ["Singapore", "Σιγκαπούρη"],
+    "Slovakia": ["Slovakia", "Σλοβακία"],
+    "Slovenia": ["Slovenia", "Σλοβενία"],
+    "Solomon Is.": ["Solomon Islands", "Νήσοι Σολομώντα"],
+    "Somalia": ["Somalia", "Σομαλία"],
+    "South Africa": ["South Africa", "Νότια Αφρική"],
+    "South Korea": ["South Korea", "Νότια Κορέα"],
+    "Korea": ["South Korea", "Νότια Κορέα"],
+    "Spain": ["Spain", "Ισπανία"],
+    "Sri Lanka": ["Sri Lanka", "Σρι Λάνκα"],
+    "St. Kitts and Nevis": ["Saint Kitts and Nevis", "Άγιος Χριστόφορος και Νέβις"],
+    "St. Vin. and Gren.": ["Saint Vincent and the Grenadines", "Άγιος Βικέντιος και Γρεναδίνες"],
+    "Sudan": ["Sudan", "Σουδάν"],
+    "Suriname": ["Suriname", "Σουρινάμ"],
+    "Sweden": ["Sweden", "Σουηδία"],
+    "Switzerland": ["Switzerland", "Ελβετία"],
+    "Syria": ["Syria", "Συρία"],
+    "São Tomé and Principe": ["São Tomé and Príncipe", "Σάο Τομέ και Πρίνσιπε"],
+    "Sao Tome and Principe": ["São Tomé and Príncipe", "Σάο Τομέ και Πρίνσιπε"],
+    "Taiwan": ["Taiwan", "Ταϊβάν"],
+    "Tajikistan": ["Tajikistan", "Τατζικιστάν"],
+    "Tanzania": ["Tanzania", "Τανζανία"],
+    "Thailand": ["Thailand", "Ταϊλάνδη"],
+    "Timor-Leste": ["Timor-Leste", "Ανατολικό Τιμόρ"],
+    "Togo": ["Togo", "Τόγκο"],
+    "Tonga": ["Tonga", "Τόνγκα"],
+    "Trinidad and Tobago": ["Trinidad and Tobago", "Τρινιντάντ και Τομπάγκο"],
+    "Tunisia": ["Tunisia", "Τυνησία"],
+    "Turkey": ["Turkey", "Τουρκία"],
+    "Turkmenistan": ["Turkmenistan", "Τουρκμενιστάν"],
+    "Uganda": ["Uganda", "Ουγκάντα"],
+    "Ukraine": ["Ukraine", "Ουκρανία"],
+    "United Arab Emirates": ["United Arab Emirates", "Ηνωμένα Αραβικά Εμιράτα"],
+    "United Kingdom": ["United Kingdom", "Ηνωμένο Βασίλειο"],
+    "United States of America": ["United States", "Ηνωμένες Πολιτείες"],
+    "Uruguay": ["Uruguay", "Ουρουγουάη"],
+    "Uzbekistan": ["Uzbekistan", "Ουζμπεκιστάν"],
+    "Vanuatu": ["Vanuatu", "Βανουάτου"],
+    "Venezuela": ["Venezuela", "Βενεζουέλα"],
+    "Vietnam": ["Vietnam", "Βιετνάμ"],
+    "Yemen": ["Yemen", "Υεμένη"],
+    "Zambia": ["Zambia", "Ζάμπια"],
+    "Zimbabwe": ["Zimbabwe", "Ζιμπάμπουε"],
+    "eSwatini": ["Eswatini", "Εσουατίνι"],
+    "Swaziland": ["Eswatini", "Εσουατίνι"],
+    // territories (drawn, never asked)
+    "Greenland": ["Greenland (Denmark)", "Γροιλανδία (Δανία)"],
+    "New Caledonia": ["New Caledonia (France)", "Νέα Καληδονία (Γαλλία)"],
+    "Puerto Rico": ["Puerto Rico (USA)", "Πουέρτο Ρίκο (ΗΠΑ)"],
+    "Falkland Is.": ["Falkland Islands (UK)", "Νήσοι Φώκλαντ (ΗΒ)"],
+    "W. Sahara": ["Western Sahara", "Δυτική Σαχάρα"],
+    "N. Cyprus": ["Northern Cyprus", "Βόρεια Κύπρος"],
+    "Somaliland": ["Somaliland", "Σομαλιλάνδη"],
+    "Hong Kong": ["Hong Kong (China)", "Χονγκ Κονγκ (Κίνα)"],
+    "Macao": ["Macao (China)", "Μακάο (Κίνα)"],
+    "French Guiana (France)": ["French Guiana (France)", "Γαλλική Γουιάνα (Γαλλία)"]
+  };
+  const displayName = f => {
+    const n = NAMES[f.properties.name];
+    return n ? n[lang === "el" ? 1 : 0] : f.properties.name;
+  };
+
+  // ================= Map design constants =================
+  const LAT_TOP = 74;
+  const LAT_BOT = -56.5;
+  const ROTATE = -11;
+  const MARGIN = 10;
+  const AREA_T = 8;
+  const REF_SCALE = 220;
+
+  // ---------- Corrected geometry (Morocco / Western Sahara, UN view) ----------
+  const GEO_PATCH = {"Morocco":{"type":"MultiPolygon","coordinates":[[[[-13.162,27.666],[-13.041,27.77],[-12.948,27.914],[-12.793,27.978],[-12.469,28.009],[-11.986,28.129],[-11.554,28.31],[-11.432,28.383],[-11.299,28.527],[-11.083,28.714],[-10.672,28.94],[-10.485,29.065],[-10.201,29.381],[-10.01,29.641],[-9.851,29.81],[-9.743,29.959],[-9.668,30.11],[-9.625,30.353],[-9.653,30.448],[-9.772,30.603],[-9.855,30.645],[-9.877,30.717],[-9.833,30.848],[-9.833,31.07],[-9.808,31.424],[-9.675,31.71],[-9.347,32.087],[-9.286,32.24],[-9.25,32.486],[-9.247,32.573],[-8.836,32.92],[-8.595,33.188],[-8.512,33.252],[-8.3,33.374],[-7.562,33.641],[-7.144,33.83],[-6.899,33.969],[-6.755,34.132],[-6.352,34.776],[-5.956,35.681],[-5.924,35.787],[-5.747,35.816],[-5.621,35.828],[-5.521,35.861],[-5.398,35.931],[-5.279,35.903],[-5.337,35.856],[-5.337,35.745],[-5.254,35.615],[-5.107,35.467],[-4.837,35.281],[-4.628,35.207],[-4.329,35.162],[-3.983,35.243],[-3.789,35.245],[-3.692,35.28],[-3.591,35.228],[-3.393,35.212],[-3.206,35.24],[-3.062,35.318],[-2.972,35.406],[-2.957,35.363],[-2.954,35.314],[-2.925,35.287],[-2.871,35.172],[-2.839,35.129],[-2.731,35.136],[-2.637,35.113],[-2.425,35.123],[-2.219,35.104],[-2.191,35.03],[-2.133,34.971],[-1.921,34.835],[-1.795,34.752],[-1.791,34.722],[-1.834,34.655],[-1.849,34.608],[-1.816,34.558],[-1.741,34.497],[-1.733,34.467],[-1.751,34.433],[-1.791,34.368],[-1.708,34.176],[-1.694,33.99],[-1.715,33.858],[-1.715,33.782],[-1.705,33.717],[-1.633,33.566],[-1.679,33.318],[-1.625,33.183],[-1.55,33.073],[-1.51,32.877],[-1.449,32.785],[-1.352,32.703],[-1.298,32.676],[-1.19,32.608],[-1.111,32.552],[-1.064,32.469],[-1.161,32.4],[-1.24,32.337],[-1.262,32.271],[-1.226,32.165],[-1.226,32.108],[-1.276,32.089],[-1.478,32.094],[-1.636,32.099],[-1.816,32.105],[-2.072,32.115],[-2.23,32.122],[-2.45,32.131],[-2.522,32.125],[-2.723,32.096],[-2.864,32.075],[-2.885,32.068],[-2.932,32.042],[-2.961,31.964],[-2.99,31.874],[-3.019,31.834],[-3.44,31.705],[-3.605,31.686],[-3.699,31.7],[-3.767,31.69],[-3.825,31.662],[-3.847,31.62],[-3.85,31.566],[-3.836,31.513],[-3.796,31.438],[-3.789,31.362],[-3.814,31.309],[-3.821,31.256],[-3.832,31.198],[-3.811,31.167],[-3.771,31.162],[-3.731,31.136],[-3.674,31.112],[-3.623,31.066],[-3.627,31],[-3.667,30.964],[-3.703,30.945],[-3.861,30.928],[-3.987,30.914],[-4.149,30.809],[-4.322,30.698],[-4.531,30.625],[-4.621,30.605],[-4.779,30.553],[-4.97,30.466],[-5.063,30.327],[-5.179,30.165],[-5.294,30.058],[-5.449,29.957],[-5.593,29.917],[-5.776,29.869],[-6.003,29.832],[-6.165,29.818],[-6.215,29.811],[-6.356,29.808],[-6.428,29.816],[-6.478,29.82],[-6.5,29.81],[-6.507,29.784],[-6.511,29.726],[-6.521,29.66],[-6.565,29.605],[-6.597,29.579],[-6.637,29.568],[-6.755,29.584],[-6.856,29.601],[-7.094,29.626],[-7.141,29.62],[-7.159,29.613],[-7.234,29.575],[-7.349,29.495],[-7.429,29.424],[-7.486,29.393],[-7.623,29.376],[-7.684,29.35],[-7.943,29.174],[-7.997,29.133],[-8.264,28.98],[-8.339,28.929],[-8.401,28.881],[-8.559,28.768],[-8.66,28.719],[-8.678,28.69],[-8.685,28.62],[-8.685,27.666],[-13.162,27.666]]]]},"W. Sahara":{"type":"MultiPolygon","coordinates":[[[[-17.098,20.857],[-17.008,21.378],[-17.005,21.421],[-16.929,21.9],[-16.792,22.159],[-16.684,22.274],[-16.515,22.334],[-16.36,22.595],[-16.303,22.834],[-16.202,22.945],[-16.17,23.032],[-16.209,23.098],[-16.112,23.228],[-15.997,23.426],[-15.943,23.553],[-15.806,23.749],[-15.788,23.793],[-15.802,23.843],[-15.856,23.799],[-15.914,23.728],[-15.982,23.671],[-15.954,23.74],[-15.9,23.845],[-15.777,23.952],[-15.586,24.072],[-15.19,24.478],[-15.039,24.549],[-14.906,24.72],[-14.856,24.872],[-14.841,25.22],[-14.794,25.404],[-14.708,25.548],[-14.604,25.808],[-14.524,25.926],[-14.47,26.162],[-14.413,26.254],[-14.312,26.296],[-14.168,26.416],[-13.952,26.489],[-13.696,26.643],[-13.578,26.735],[-13.495,26.872],[-13.408,27.147],[-13.257,27.435],[-13.178,27.652],[-13.174,27.655],[-13.162,27.666],[-8.685,27.666],[-8.685,27.285],[-8.681,27.119],[-8.681,25.996],[-12.015,25.996],[-12.015,23.577],[-12.022,23.468],[-12.084,23.435],[-12.228,23.378],[-12.372,23.319],[-12.559,23.291],[-12.62,23.272],[-12.739,23.192],[-12.897,23.089],[-13.03,23.001],[-13.12,22.885],[-13.153,22.82],[-13.167,22.753],[-13.156,22.688],[-13.106,22.56],[-13.095,22.496],[-13.088,22.383],[-13.077,22.26],[-13.07,22.128],[-13.059,21.996],[-13.052,21.855],[-13.041,21.715],[-13.034,21.572],[-13.027,21.466],[-13.016,21.334],[-13.398,21.334],[-13.624,21.333],[-14.773,21.333],[-15.003,21.331],[-16.148,21.331],[-16.378,21.329],[-16.965,21.329],[-17.005,21.142],[-17.041,21.008],[-17.062,20.899],[-17.048,20.807],[-17.098,20.857]]]]},"Cyprus":{"type":"MultiPolygon","coordinates":[[[[32.301,35.084],[32.391,35.051],[32.474,35.09],[32.557,35.156],[32.654,35.182],[32.712,35.17],[32.773,35.16],[32.881,35.181],[32.928,35.278],[32.942,35.391],[33.122,35.358],[33.309,35.342],[33.461,35.335],[33.608,35.354],[34.062,35.474],[34.191,35.545],[34.274,35.57],[34.411,35.629],[34.555,35.662],[34.465,35.594],[33.943,35.292],[33.907,35.202],[33.932,35.141],[34.004,35.064],[34.022,35.045],[34.051,34.988],[33.936,34.971],[33.824,34.965],[33.759,34.972],[33.698,34.971],[33.515,34.806],[33.414,34.75],[33.295,34.717],[33.176,34.698],[33.115,34.696],[33.061,34.676],[33.025,34.637],[33.025,34.599],[33.007,34.57],[32.942,34.577],[32.913,34.636],[32.867,34.662],[32.751,34.648],[32.694,34.65],[32.507,34.707],[32.449,34.729],[32.413,34.778],[32.316,34.953],[32.301,35.084]]]]}};
+
+  // ---------- Small island territories: removed from the map entirely ----------
+  const DROP_FROM_MAP = new Set([
+    "Fr. S. Antarctic Lands","Fr. Polynesia","American Samoa","Cook Is.","Niue",
+    "Wallis and Futuna Is.","Pitcairn Is.","Norfolk Island",
+    "Heard I. and McDonald Is.","Br. Indian Ocean Ter.","Saint Helena",
+    "S. Geo. and the Is.","Ashmore and Cartier Is.","Indian Ocean Ter.",
+    "Bermuda","Cayman Is.","Turks and Caicos Is.","Anguilla","Montserrat",
+    "British Virgin Is.","U.S. Virgin Is.","Curaçao","Aruba","Sint Maarten",
+    "St-Martin","St-Barthélemy","Faeroe Is.","Guam","N. Mariana Is.",
+    "St. Pierre and Miquelon","Guernsey","Jersey","Isle of Man","Åland","Vatican",
+    "N. Cyprus"
+  ]);
+
+  // ---------- Territories kept on the map (for continuity) but never asked ----------
+  const NOT_QUIZZABLE = new Set([
+    "Greenland","New Caledonia","Puerto Rico","Falkland Is.","W. Sahara",
+    "Somaliland","Hong Kong","Macao","Siachen Glacier",
+    "French Guiana (France)"
+  ]);
+  const NON_INTERACTIVE = new Set(["Siachen Glacier","W. Sahara","Somaliland"]);
+
+  // ---------- Overseas parts of countries: keep, split off, or drop ----------
+  const PART_RULES = {
+    "France": c => c[1] > 34 ? "keep"
+      : (c[0] > -56 && c[0] < -49 ? "French Guiana (France)" : "drop"),
+    "Netherlands": c => c[1] > 40 ? "keep" : "drop",
+    "New Zealand": c => c[1] < -20 ? "keep" : "drop",
+    "Australia": c => c[1] > -50 ? "keep" : "drop"
+  };
+
+  // ---------- Marker anchor overrides ----------
+  const ANCHOR = { "Kiribati": [172.98, 1.33] };   // Tarawa
+
+  // ---------- Difficulty tiers (FINAL) ----------
+  // Base: composite prominence index — 40% global awareness (YouGov survey, Q4 2025)
+  // + 20% log population + 20% log GDP + 20% log area (see tier_calc.js).
+  // Reviewed and adjusted by the research team in two passes
+  // (50 + 20 reassignments, 2026-07-20); audit trail in difficulty_methodology.md.
+  // easy = 45, moderate = 72, hard = remaining 78.
+  const TIERS = {
+    easy: ["China","United States of America","India","Russia","Brazil","Canada",
+      "Mexico","Japan","Germany","Australia","France","United Kingdom","Italy",
+      "Argentina","Spain","Saudi Arabia","Turkey","Egypt","Iran","South Africa",
+      "South Korea","Poland","Chile","Ukraine","Iraq","Venezuela","Sweden",
+      "Morocco","Netherlands","Norway","Romania","Belgium","Finland","Greece",
+      "Ireland","New Zealand","Portugal","Switzerland","Israel","North Korea",
+      "Denmark","Bulgaria","Cyprus","Iceland","Palestine"],
+    moderate: ["Afghanistan","Dem. Rep. Congo","Ecuador","Austria","Sudan",
+      "Czechia","Bolivia","Madagascar","Taiwan","Guatemala","Dominican Rep.",
+      "Hungary","Cuba","Costa Rica","Libya","Angola","Kazakhstan","Nepal","Yemen",
+      "United Arab Emirates","Honduras","Cambodia","Mongolia","Syria","Uruguay",
+      "Panama","Slovakia","Paraguay","Cameroon","Serbia","Jordan","Nicaragua",
+      "Croatia","Sri Lanka","Indonesia","Pakistan","Nigeria","Thailand",
+      "Colombia","Philippines","Vietnam","Ethiopia","Peru","Algeria","Bangladesh",
+      "Malaysia","Albania","Bosnia and Herz.","Estonia","Kosovo","Kuwait",
+      "Latvia","Lebanon","Liechtenstein","Luxembourg","Macedonia","Malta",
+      "Moldova","Monaco","Montenegro","Myanmar","Oman","Qatar","Singapore",
+      "Tunisia","Andorra","Armenia","Belarus","Georgia","Jamaica","San Marino",
+      "Slovenia"]
+  };
+  const EASY_SET = new Set(TIERS.easy);
+  const MOD_SET = new Set(TIERS.easy.concat(TIERS.moderate));
+  let difficulty = "all";
+  try { difficulty = localStorage.getItem("geoquiz-difficulty") || "all"; } catch (e) {}
+  if (!["easy", "moderate", "all"].includes(difficulty)) difficulty = "all";
+
+  function activePool() {
+    if (difficulty === "easy") return quizPool.filter(f => EASY_SET.has(f.properties.name));
+    if (difficulty === "moderate") return quizPool.filter(f => MOD_SET.has(f.properties.name));
+    return quizPool;
+  }
+
+  // ================= Projection: Miller (a balanced Mercator) =================
+  const Y_STRETCH = 1.15;
+  function millerRaw(lambda, phi) {
+    return [lambda, Y_STRETCH * 1.25 * Math.log(Math.tan(Math.PI / 4 + 0.4 * phi))];
+  }
+  millerRaw.invert = function (x, y) {
+    return [x, 2.5 * Math.atan(Math.exp(0.8 * y / Y_STRETCH)) - 0.625 * Math.PI];
+  };
+  const projection = d3.geoProjection(millerRaw).rotate([ROTATE, 0]);
+  const path = d3.geoPath(projection);
+  const millerY = latDeg =>
+    Y_STRETCH * 1.25 * Math.log(Math.tan(Math.PI / 4 + 0.4 * latDeg * Math.PI / 180));
+
+  // ================= SVG scaffolding =================
+  const svg = d3.select("#map");
+  const defs = svg.append("defs");
+  const clipRect = defs.append("clipPath").attr("id", "frame-clip").append("rect");
+  const sea = svg.append("rect").attr("id", "sea");
+  const gClip = svg.append("g").attr("clip-path", "url(#frame-clip)");
+  const g = gClip.append("g");
+  const gCountries = g.append("g");
+  const gTerr = g.append("g");
+  const gLakes = g.append("g");
+  const gMarkers = g.append("g");
+  const frameBorder = svg.append("rect").attr("id", "frame-border");
+
+  // ================= State =================
+  let quizPool = [];
+  let territories = [];
+  let mode = null, queue = [], target = null;
+  let score = 0, asked = 0, streak = 0, bestStreak = 0, total = 0;
+  let locked = false, qStart = 0, playing = false;
+  let answers = [];
+  let hiScore = 0;
+  try { hiScore = +(localStorage.getItem("geoquiz-hiscore") || 0); } catch (e) {}
+
+  // ================= Language switching =================
+  function setLang(l) {
+    lang = l;
+    try { localStorage.setItem("geoquiz-lang", l); } catch (e) {}
+    document.documentElement.lang = l;
+    document.querySelectorAll("[data-i18n]").forEach(el => {
+      const v = STR[l][el.dataset.i18n];
+      if (typeof v === "string") el.innerHTML = v;
+    });
+    document.querySelectorAll(".lang-btn").forEach(b =>
+      b.classList.toggle("active", b.dataset.lang === l));
+    updateModeTexts();
+    if (playing && target) {
+      document.getElementById("target-name").textContent = displayName(target);
+      updateHeader();
+    }
+  }
+  document.querySelectorAll(".lang-btn").forEach(b =>
+    b.addEventListener("click", () => setLang(b.dataset.lang)));
+
+  // ================= Difficulty selector =================
+  function updateModeTexts() {
+    if (!quizPool.length) return;
+    const counts = {
+      easy: activePoolFor("easy").length,
+      moderate: activePoolFor("moderate").length,
+      all: quizPool.length
+    };
+    const labels = { easy: t("diffEasy"), moderate: t("diffMod"), all: t("diffAll") };
+    document.querySelectorAll(".diff-btn").forEach(b => {
+      b.querySelector(".d-label").textContent = labels[b.dataset.diff];
+      b.querySelector(".d-count").textContent = "· " + counts[b.dataset.diff];
+      b.classList.toggle("active", b.dataset.diff === difficulty);
+    });
+    document.getElementById("mara-desc").textContent = t("maraD")(counts[difficulty]);
+  }
+  function activePoolFor(d) {
+    if (d === "easy") return quizPool.filter(f => EASY_SET.has(f.properties.name));
+    if (d === "moderate") return quizPool.filter(f => MOD_SET.has(f.properties.name));
+    return quizPool;
+  }
+  function setDifficulty(d) {
+    difficulty = d;
+    try { localStorage.setItem("geoquiz-difficulty", d); } catch (e) {}
+    updateModeTexts();
+  }
+  document.querySelectorAll(".diff-btn").forEach(b =>
+    b.addEventListener("click", () => setDifficulty(b.dataset.diff)));
+
+  // ================= Zoom =================
+  const markerR = k => Math.max(1.6, 4.8 / Math.sqrt(k));
+  const zoom = d3.zoom()
+    .scaleExtent([1, 60])
+    .on("zoom", ev => {
+      g.attr("transform", ev.transform);
+      gMarkers.selectAll(".marker").attr("r", markerR(ev.transform.k));
+    });
+  svg.call(zoom);
+
+  // ================= Feature preparation =================
+  function splitParts(f) {
+    const rule = PART_RULES[f.properties.name];
+    if (!rule) return [];
+    const polys = f.geometry.type === "Polygon"
+      ? [f.geometry.coordinates] : f.geometry.coordinates;
+    const keep = [], buckets = {};
+    for (const p of polys) {
+      const c = d3.geoCentroid({ type: "Polygon", coordinates: p });
+      const r = rule(c);
+      if (r === "keep") keep.push(p);
+      else if (r !== "drop") (buckets[r] = buckets[r] || []).push(p);
+    }
+    f.geometry = { type: "MultiPolygon", coordinates: keep };
+    return Object.entries(buckets).map(([name, coords]) => ({
+      type: "Feature",
+      properties: { name },
+      geometry: { type: "MultiPolygon", coordinates: coords }
+    }));
+  }
+
+  function largestPartAnchor(f) {
+    if (ANCHOR[f.properties.name]) return ANCHOR[f.properties.name];
+    const polys = f.geometry.type === "Polygon"
+      ? [f.geometry.coordinates] : f.geometry.coordinates;
+    let best = null, bestA = -1;
+    for (const p of polys) {
+      const geo = { type: "Polygon", coordinates: p };
+      const a = d3.geoArea(geo);
+      if (a > bestA) { bestA = a; best = geo; }
+    }
+    return d3.geoCentroid(best);
+  }
+
+  // ================= Layout (also runs on resize) =================
+  function layout() {
+    const wrap = document.getElementById("map-wrap");
+    const w = wrap.clientWidth, h = wrap.clientHeight;
+    svg.attr("viewBox", `0 0 ${w} ${h}`).attr("width", w).attr("height", h);
+    if (!quizPool.length) return;
+
+    const yT = millerY(LAT_TOP), yB = millerY(LAT_BOT);
+    const s = Math.min((w - 2 * MARGIN) / (2 * Math.PI), (h - 2 * MARGIN) / (yT - yB));
+    const ty = h / 2 + s * (yT + yB) / 2;
+    projection.scale(s).translate([w / 2, ty]);
+
+    const frame = {
+      x: w / 2 - s * Math.PI, y: ty - s * yT,
+      w: 2 * Math.PI * s, h: s * (yT - yB)
+    };
+    for (const r of [sea, clipRect, frameBorder]) {
+      r.attr("x", frame.x).attr("y", frame.y)
+       .attr("width", frame.w).attr("height", frame.h);
+    }
+    zoom.translateExtent([[frame.x, frame.y], [frame.x + frame.w, frame.y + frame.h]]);
+
+    g.selectAll(".country, .territory, .lake").attr("d", path);
+
+    const areaT = AREA_T * Math.pow(s / REF_SCALE, 2);
+    const smalls = quizPool.filter(f => path.area(f) < areaT);
+    gMarkers.selectAll(".marker")
+      .data(smalls, d => d.properties.name)
+      .join("circle")
+      .attr("class", "marker")
+      .attr("cx", d => projection(d.__anchor)[0])
+      .attr("cy", d => projection(d.__anchor)[1])
+      .attr("r", markerR(1))
+      .on("click", onCountryClick);
+
+    svg.call(zoom.transform, d3.zoomIdentity);
+  }
+  window.addEventListener("resize", layout);
+
+  // ================= Load map data =================
+  d3.json("https://cdn.jsdelivr.net/npm/world-atlas@2/countries-50m.json")
+    .then(world => {
+      let feats = topojson.feature(world, world.objects.countries).features
+        .filter(f => f.properties.name !== "Antarctica" && !DROP_FROM_MAP.has(f.properties.name));
+
+      for (const f of feats) {
+        if (GEO_PATCH[f.properties.name]) f.geometry = GEO_PATCH[f.properties.name];
+      }
+      let extras = [];
+      for (const f of feats) extras = extras.concat(splitParts(f));
+      feats = feats.concat(extras);
+
+      quizPool = feats.filter(f => !NOT_QUIZZABLE.has(f.properties.name));
+      territories = feats.filter(f => NOT_QUIZZABLE.has(f.properties.name));
+      for (const f of quizPool) f.__anchor = largestPartAnchor(f);
+
+      gCountries.selectAll(".country")
+        .data(quizPool)
+        .join("path")
+        .attr("class", "country")
+        .on("click", onCountryClick);
+      gTerr.selectAll(".territory")
+        .data(territories)
+        .join("path")
+        .attr("class", f => "territory" + (NON_INTERACTIVE.has(f.properties.name) ? " mute" : ""))
+        .on("click", onCountryClick);
+
+      layout();
+      document.getElementById("loading").style.display = "none";
+      document.getElementById("diff-row").style.display = "flex";
+      document.getElementById("mode-grid").style.display = "grid";
+      document.getElementById("hiscore").textContent = hiScore;
+      updateModeTexts();
+
+      d3.json("https://cdn.jsdelivr.net/gh/martynafford/natural-earth-geojson@master/110m/physical/ne_110m_lakes.json")
+        .then(lk => {
+          const lakes = lk.features.filter(f => d3.geoArea(f) > 2e-4);
+          gLakes.selectAll(".lake")
+            .data(lakes).join("path")
+            .attr("class", "lake")
+            .attr("d", path);
+        })
+        .catch(() => {});
+    })
+    .catch(() => {
+      document.getElementById("loading").textContent = t("loadError");
+    });
+
+  // ================= Zoom buttons =================
+  d3.select("#zoom-in").on("click", () => svg.transition().duration(250).call(zoom.scaleBy, 1.7));
+  d3.select("#zoom-out").on("click", () => svg.transition().duration(250).call(zoom.scaleBy, 1 / 1.7));
+  d3.select("#zoom-reset").on("click", () => svg.transition().duration(350).call(zoom.transform, d3.zoomIdentity));
+
+  // Pan (at the current zoom level) only if the feature is fully off-screen
+  function ensureVisible(f) {
+    const wrap = document.getElementById("map-wrap");
+    const w = wrap.clientWidth, h = wrap.clientHeight;
+    const t0 = d3.zoomTransform(svg.node());
+    const [[x0, y0], [x1, y1]] = path.bounds(f);
+    const visible =
+      t0.applyX(x1) > 0 && t0.applyX(x0) < w &&
+      t0.applyY(y1) > 0 && t0.applyY(y0) < h;
+    if (visible) return;
+    const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
+    const t2 = d3.zoomIdentity
+      .translate(w / 2 - t0.k * cx, h / 2 - t0.k * cy)
+      .scale(t0.k);
+    svg.transition().duration(650).call(zoom.transform, t2);
+  }
+
+  // ================= Toast =================
+  let toastTimer = null;
+  function toast(msg, kind) {
+    const el = document.getElementById("toast");
+    el.textContent = msg;
+    el.className = "show" + (kind ? " " + kind : "");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { el.className = ""; }, 1700);
+  }
+
+  // ================= Game flow =================
+  function shuffle(arr) {
+    const a = arr.slice();
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  }
+
+  function startGame(m) {
+    mode = m;
+    score = 0; asked = 0; streak = 0; bestStreak = 0;
+    answers = [];
+    const pool = activePool();
+    queue = shuffle(pool);
+    total = m === "survival" ? 0
+      : m === "marathon" ? pool.length
+      : Math.min(+m, pool.length);
+    playing = true;
+    document.getElementById("start-screen").classList.remove("active");
+    document.getElementById("results-screen").classList.remove("active");
+    document.getElementById("header").classList.add("active");
+    svg.transition().duration(300).call(zoom.transform, d3.zoomIdentity);
+    updateHeader();
+    nextQuestion();
+  }
+
+  function nextQuestion() {
+    if (!playing) return;
+    if (mode !== "survival" && asked >= total) { endGame(false); return; }
+    if (queue.length === 0) { endGame(false); return; }
+    target = queue.pop();
+    locked = false;
+    document.getElementById("target-name").textContent = displayName(target);
+    updateHeader();
+    qStart = performance.now();
+  }
+
+  function updateHeader() {
+    document.getElementById("score").textContent = score;
+    document.getElementById("streak").textContent = bestStreak;
+    document.getElementById("progress-label").textContent =
+      t(mode === "survival" ? "streakLbl" : "question");
+    document.getElementById("progress").textContent =
+      mode === "survival" ? streak : Math.min(asked + 1, total) + " / " + total;
+  }
+
+  function onCountryClick(ev, f) {
+    if (!playing || locked || !target) return;
+    locked = true;
+    const ms = Math.round(performance.now() - qStart);
+    const correct = f === target;
+    answers.push({
+      askedName: target.properties.name,
+      clickedName: f.properties.name,
+      correct: correct,
+      ms: ms
+    });
+    asked++;
+    const sel = d3.selectAll(".country, .territory, .marker").filter(d => d === f);
+
+    if (correct) {
+      score++; streak++;
+      bestStreak = Math.max(bestStreak, streak);
+      sel.classed("flash-good", true);
+      toast(t("correctToast")(displayName(f)), "good");
+      updateHeader();
+      setTimeout(() => {
+        sel.classed("flash-good", false);
+        nextQuestion();
+      }, 700);
+    } else {
+      streak = 0;
+      sel.classed("flash-bad", true);
+      const targetSel = d3.selectAll(".country, .marker").filter(d => d === target);
+      targetSel.classed("reveal", true);
+      ensureVisible(target);
+      toast(t("wrongToast")(displayName(f), displayName(target)), "bad");
+      updateHeader();
+      setTimeout(() => {
+        sel.classed("flash-bad", false);
+        targetSel.classed("reveal", false);
+        if (mode === "survival") endGame(true);
+        else nextQuestion();
+      }, 2100);
+    }
+  }
+
+  const nameByKey = key => {
+    const n = NAMES[key];
+    return n ? n[lang === "el" ? 1 : 0] : key;
+  };
+
+  function endGame(died) {
+    playing = false;
+    target = null;
+    document.getElementById("header").classList.remove("active");
+
+    const correctCount = answers.filter(a => a.correct).length;
+    const avgMs = answers.length
+      ? answers.reduce((s, a) => s + a.ms, 0) / answers.length : 0;
+
+    document.getElementById("results-title").textContent =
+      mode === "survival" ? (died ? t("gameOver") : t("survEnd")) : t("results");
+    document.getElementById("final-score").textContent =
+      mode === "survival" ? correctCount : correctCount + " / " + answers.length;
+    document.getElementById("r-accuracy").textContent =
+      answers.length ? Math.round(100 * correctCount / answers.length) + "%" : "—";
+    document.getElementById("r-time").textContent =
+      answers.length ? (avgMs / 1000).toFixed(1) + "s" : "—";
+    document.getElementById("r-streak").textContent = bestStreak;
+
+    let sub = "";
+    if (mode === "survival") {
+      if (correctCount > hiScore) {
+        hiScore = correctCount;
+        try { localStorage.setItem("geoquiz-hiscore", String(hiScore)); } catch (e) {}
+        sub = t("newHi");
+      } else {
+        sub = t("hi") + hiScore;
+      }
+      document.getElementById("hiscore").textContent = hiScore;
+    } else {
+      const pct = answers.length ? correctCount / answers.length : 0;
+      sub = pct === 1 ? t("perfect")
+        : pct >= 0.8 ? t("excellent") : pct >= 0.5 ? t("good") : t("keep");
+    }
+    document.getElementById("final-sub").textContent = sub;
+
+    const mistakes = answers.filter(a => !a.correct);
+    const mBox = document.getElementById("mistakes");
+    if (mistakes.length) {
+      mBox.style.display = "block";
+      mBox.innerHTML = "<div style='color:var(--ink);font-weight:600;padding-bottom:4px'>" + t("mistakes") + "</div>" +
+        mistakes.map(a => "<div>" + t("mLine")(nameByKey(a.askedName), nameByKey(a.clickedName)) + "</div>").join("");
+    } else {
+      mBox.style.display = "none";
+    }
+    document.getElementById("results-screen").classList.add("active");
+  }
+
+  // ================= Buttons =================
+  document.querySelectorAll(".mode-btn").forEach(b =>
+    b.addEventListener("click", () => startGame(b.dataset.mode)));
+  document.getElementById("again-btn").addEventListener("click", () => startGame(mode));
+  document.getElementById("menu-btn").addEventListener("click", () => {
+    document.getElementById("results-screen").classList.remove("active");
+    document.getElementById("start-screen").classList.add("active");
+    svg.transition().duration(300).call(zoom.transform, d3.zoomIdentity);
+  });
+  document.getElementById("quit-btn").addEventListener("click", () => {
+    if (playing) endGame(false);
+  });
+
+  setLang(lang);
+  layout();
+})();
+</script>
+</body>
+</html>
