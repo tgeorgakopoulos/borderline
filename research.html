@@ -15,18 +15,31 @@
   }
   * { margin: 0; padding: 0; box-sizing: border-box; }
   html, body { height: 100%; overflow: hidden; }
+  @supports (height: 100dvh) { body { height: 100dvh; } }
   body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
     background: #fff; color: var(--ink); display: flex; flex-direction: column;
   }
   #header {
-    display: none; align-items: center; justify-content: space-between;
-    gap: 12px; padding: 10px 16px; border-bottom: 1px solid #e2e8f0;
+    display: none;
+    position: absolute;
+    top: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 5;
+    align-items: center;
+    gap: 18px;
+    padding: 10px 20px;
+    background: rgba(255,255,255,0.96);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    max-width: 94%;
   }
   #header.active { display: flex; }
-  #prompt { font-size: 15px; color: var(--muted); }
-  #target-name { font-size: clamp(20px, 3.5vw, 28px); font-weight: 700; }
-  #item-count { font-size: 14px; color: var(--muted); }
+  #prompt { font-size: 13px; color: var(--muted); white-space: nowrap; }
+  #target-name { font-size: clamp(18px, 3vw, 26px); font-weight: 700; white-space: nowrap; }
+  #item-count { font-size: 13px; color: var(--muted); white-space: nowrap; }
   #map-wrap { flex: 1; position: relative; min-height: 0; }
   #map { width: 100%; height: 100%; display: block; touch-action: none; }
   #sea { fill: var(--sea); }
@@ -51,7 +64,7 @@
     border-radius: 10px; font-size: 20px; cursor: pointer; box-shadow: 0 1px 3px rgba(0,0,0,0.08);
   }
   #toast {
-    position: absolute; left: 50%; top: 14px; transform: translateX(-50%);
+    position: absolute; left: 50%; top: 82px; transform: translateX(-50%);
     background: var(--ink); color: #fff; padding: 10px 18px; border-radius: 10px;
     font-size: 15px; opacity: 0; pointer-events: none; transition: opacity 0.25s;
     max-width: 90%; text-align: center;
@@ -105,20 +118,29 @@
   .inline-add input, .inline-add select { padding: 8px 10px; border: 1.5px solid var(--line); border-radius: 8px; font-size: 14px; font-family: inherit; }
   #loading { color: var(--muted); font-size: 16px; }
   .badge { display: inline-block; font-size: 12px; background: #eff6ff; color: var(--accent); border-radius: 999px; padding: 2px 10px; margin-left: 8px; }
+  .stat-cards { display: flex; gap: 12px; flex-wrap: wrap; margin: 16px 0; }
+  .stat { background: #f8fafc; border-radius: 10px; padding: 12px 20px; font-size: 13px; color: var(--muted); }
+  .stat b { display: block; font-size: 22px; color: var(--ink); }
+  .findings { margin: 10px 0 6px 20px; font-size: 14.5px; line-height: 1.6; }
+  .rep-maps { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; margin: 14px 0; }
+  .rep-maps h3 { font-size: 15px; margin-bottom: 6px; }
+  .rep-maps .cap { font-size: 12px; color: var(--muted); margin-top: 4px; }
+  table.rep { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 8px; }
+  table.rep th, table.rep td { text-align: left; padding: 5px 8px; border-bottom: 1px solid #eef2f7; }
+  table.rep th { color: var(--muted); font-size: 12px; }
 </style>
 </head>
 <body>
 
-<div id="header">
-  <div>
-    <div id="prompt"></div>
-    <div id="target-name">—</div>
-  </div>
-  <div id="item-count"></div>
-</div>
-
 <div id="map-wrap">
   <svg id="map"></svg>
+  <div id="header">
+    <div>
+      <div id="prompt"></div>
+      <div id="target-name">—</div>
+    </div>
+    <div id="item-count"></div>
+  </div>
   <div id="zoom-controls">
     <button id="zoom-in" aria-label="Zoom in">+</button>
     <button id="zoom-out" aria-label="Zoom out">−</button>
@@ -216,6 +238,16 @@
           <button class="ghost-btn" id="q-cancel">Cancel</button>
         </div>
       </div>
+    </div>
+  </div>
+
+  <div class="screen" id="report-screen">
+    <div class="panel admin-wide">
+      <div class="btn-row" style="justify-content:flex-start;margin-bottom:16px">
+        <button class="ghost-btn" id="report-back">Back</button>
+        <button class="ghost-btn" id="report-print">Print / PDF</button>
+      </div>
+      <div id="report-body"></div>
     </div>
   </div>
 
@@ -620,7 +652,7 @@
   };
   const rt = k => (RSTR[lang] || RSTR.en)[k];
 
-  const CONSENT_TEMPLATE = "You are invited to take part in a research study on geographic knowledge.\n\nIf you agree to participate, you will first answer a few short questions about yourself, and then you will be shown the names of countries, one at a time. Your task is to locate each country on a world map by tapping or clicking it.\n\nYour responses are anonymous and will be used for research purposes only. Participation is voluntary and you may stop at any time by closing this page.\n\nIf you agree to participate, press the button below.";
+  const CONSENT_TEMPLATE = "You are invited to take part in a research study on geographic knowledge.\n\nIf you agree to participate, you will first answer a few short questions about yourself, and then you will be shown the names of countries, one at a time. Your task is to locate each country on a world map by tapping or clicking it.\n\nYour responses are anonymous and will be used for research purposes only. Participation is voluntary and you may stop at any time by closing this page.\n\nTechnical information about your device (screen size and browser type) is recorded to ensure data quality. No identifying information — such as your name, IP address, or account details — is collected or stored with your responses.\n\nIf you agree to participate, press the button below.";
 
   // ================= Supabase backend + offline queue =================
   const SB_URL = "https://ttttbaeyqpkjavdcpotx.supabase.co";
@@ -634,17 +666,22 @@
     push(op) { const a = this._get(); a.push(op); this._set(a); this.flush(); },
     _flushing: false,
     async flush() {
-      if (this._flushing || !navigator.onLine) { updateSyncBadge(); return; }
+      if (this._flushing) { updateSyncBadge(); return; }
       this._flushing = true;
       try {
         let a = this._get();
         while (a.length) {
           const op = a[0];
           let err = null;
-          if (op.type === "session") ({ error: err } = await sb.from("sessions").upsert(op.payload));
-          else if (op.type === "session_update") ({ error: err } = await sb.from("sessions").update(op.payload.patch).eq("id", op.payload.id));
-          else if (op.type === "response") ({ error: err } = await sb.from("responses").insert(op.payload));
-          if (err) break;
+          try {
+            if (op.type === "session") ({ error: err } = await sb.from("sessions").upsert(op.payload));
+            else if (op.type === "session_update") ({ error: err } = await sb.from("sessions").update(op.payload.patch).eq("id", op.payload.id));
+            else if (op.type === "response") ({ error: err } = await sb.from("responses").insert(op.payload));
+          } catch (e) { err = e; }
+          if (err) {
+            try { localStorage.setItem("gqr-lasterr", String(err.message || err).slice(0, 300)); } catch (e) {}
+            break;
+          }
           a.shift();
           this._set(a);
         }
@@ -655,12 +692,17 @@
     }
   };
   window.addEventListener("online", () => Q.flush());
-  setInterval(() => Q.flush(), 30000);
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) Q.flush(); });
+  setInterval(() => Q.flush(), 15000);
+  Q.flush();
 
   function updateSyncBadge() {
     const n = Q.count();
     const el = document.getElementById("sync-badge");
-    if (el) el.textContent = n ? n + " records waiting to upload" : "all data synced";
+    if (el) {
+      el.textContent = n ? n + " records waiting to upload" : "all data synced";
+      el.title = n ? (localStorage.getItem("gqr-lasterr") || "") : "";
+    }
     const p = document.getElementById("pending-note");
     if (p) {
       p.style.display = n ? "block" : "none";
@@ -759,11 +801,24 @@
   const markerR = k => Math.max(1.6, 4.8 / Math.sqrt(k));
   const zoom = d3.zoom()
     .scaleExtent([1, 60])
+    .clickDistance(8)
     .on("zoom", ev => {
       g.attr("transform", ev.transform);
       gMarkers.selectAll(".marker").attr("r", markerR(ev.transform.k));
     });
   svg.call(zoom);
+
+  // Multi-touch guard: suppress country taps during/just after pinch gestures
+  let mtCount = 0, mtLast = 0;
+  svg.node().addEventListener("pointerdown", ev => {
+    if (ev.pointerType === "touch") { mtCount++; if (mtCount > 1) mtLast = Date.now(); }
+  }, true);
+  const mtUp = ev => {
+    if (ev.pointerType === "touch") { if (mtCount > 1) mtLast = Date.now(); mtCount = Math.max(0, mtCount - 1); }
+  };
+  svg.node().addEventListener("pointerup", mtUp, true);
+  svg.node().addEventListener("pointercancel", mtUp, true);
+  const multiTouchGuard = () => mtCount > 1 || (Date.now() - mtLast) < 400;
 
   // ================= Feature preparation =================
   function splitParts(f) {
@@ -819,7 +874,8 @@
       r.attr("x", frame.x).attr("y", frame.y)
        .attr("width", frame.w).attr("height", frame.h);
     }
-    zoom.translateExtent([[frame.x, frame.y], [frame.x + frame.w, frame.y + frame.h]]);
+    const mx = frame.w * 0.25, my = frame.h * 0.25;
+    zoom.translateExtent([[frame.x - mx, frame.y - my], [frame.x + frame.w + mx, frame.y + frame.h + my]]);
 
     g.selectAll(".country, .territory, .lake").attr("d", path);
 
@@ -874,7 +930,7 @@
         "Could not load map data — check your internet connection and reload the page.";
     });
 
-  sea.on("click", ev => { if (study && !study.locked) recordAnswer(ev, null); });
+  sea.on("click", ev => { if (study && !study.locked && !multiTouchGuard()) recordAnswer(ev, null); });
 
   d3.select("#zoom-in").on("click", () => svg.transition().duration(250).call(zoom.scaleBy, 1.7));
   d3.select("#zoom-out").on("click", () => svg.transition().duration(250).call(zoom.scaleBy, 1 / 1.7));
@@ -1016,6 +1072,7 @@
 
   function onCountryClick(ev, f) {
     if (!study || study.locked) return;
+    if (multiTouchGuard()) return;
     ev.stopPropagation();
     recordAnswer(ev, f);
   }
@@ -1169,6 +1226,7 @@
           : prompt("Participant link:", link);
       });
       mk("Test run", () => { location.hash = q.code; tryJoin(q.code); });
+      mk("Results", () => openReport(q.code));
       mk("Export CSV", () => exportCSV(q.code));
       mk("Delete", async () => {
         if (!confirm("Delete quiz \"" + q.name + "\" and all its data?")) return;
@@ -1320,6 +1378,161 @@
     }
   });
 
+  // ================= Auto-analysis report =================
+  document.getElementById("report-back").addEventListener("click", () => show("admin-screen"));
+  document.getElementById("report-print").addEventListener("click", () => window.print());
+
+  function miniMap(container, fillFor, dots) {
+    const w = 640, h = 300;
+    const proj = d3.geoProjection(millerRaw).rotate([ROTATE, 0]);
+    const yT = millerY(LAT_TOP), yB = millerY(LAT_BOT);
+    const s = Math.min(w / (2 * Math.PI), h / (yT - yB));
+    proj.scale(s).translate([w / 2, h / 2 + s * (yT + yB) / 2]);
+    const p = d3.geoPath(proj);
+    let out = "<svg viewBox='0 0 " + w + " " + h + "' style='width:100%;height:auto;background:var(--sea);border:1px solid var(--line);border-radius:8px'>";
+    for (const f of quizPool.concat(territories)) {
+      const d = p(f);
+      if (!d) continue;
+      out += "<path d='" + d + "' fill='" + (fillFor(f) || "#ffffff") + "' stroke='#cbd5e1' stroke-width='0.4'></path>";
+    }
+    if (dots) for (const dt of dots) {
+      const xy = proj([dt.lon, dt.lat]);
+      if (!xy) continue;
+      out += "<circle cx='" + xy[0].toFixed(1) + "' cy='" + xy[1].toFixed(1) + "' r='2.6' fill='" + dt.color + "' fill-opacity='0.6'></circle>";
+    }
+    container.innerHTML = out + "</svg>";
+  }
+
+  async function openReport(code) {
+    show("report-screen");
+    const body = document.getElementById("report-body");
+    body.innerHTML = "<p style='color:var(--muted)'>Loading data…</p>";
+    let quiz, sessions, responses;
+    try {
+      quiz = await Store.getQuiz(code);
+      sessions = await Store.sessionsFor(code);
+      responses = await Store.responsesFor(code);
+    } catch (e) {
+      body.innerHTML = "<p>Could not load data — check connection and login.</p>";
+      return;
+    }
+    if (!responses.length) {
+      body.innerHTML = "<h2>" + quiz.name + "</h2><p style='color:var(--muted)'>No responses recorded yet.</p>";
+      return;
+    }
+    const med = arr => {
+      if (!arr.length) return null;
+      const a = arr.slice().sort((x, y) => x - y);
+      const m = Math.floor(a.length / 2);
+      return a.length % 2 ? a[m] : Math.round((a[m - 1] + a[m]) / 2);
+    };
+    const pct = v => Math.round(100 * v) + "%";
+
+    const stats = {};
+    const order = quiz.countries.slice();
+    for (const r of responses) {
+      if (!stats[r.asked]) {
+        stats[r.asked] = { n: 0, ok: 0, rts: [], errs: [], conf: {} };
+        if (!order.includes(r.asked)) order.push(r.asked);
+      }
+      const s = stats[r.asked];
+      s.n++;
+      if (r.correct) s.ok++;
+      if (r.rt_ms != null) s.rts.push(r.rt_ms);
+      if (!r.correct) {
+        if (r.lon != null) {
+          const e = borderKm(r.lon, r.lat, r.asked);
+          if (e != null) s.errs.push(e);
+        }
+        s.conf[r.clicked] = (s.conf[r.clicked] || 0) + 1;
+      }
+    }
+    const rows = order.filter(n => stats[n]).map(n => ({ name: n, ...stats[n], acc: stats[n].ok / stats[n].n }));
+    const totalOk = responses.filter(r => r.correct).length;
+    const compl = sessions.filter(s => s.complete);
+    const durs = compl.filter(s => s.started_at && s.ended_at)
+      .map(s => Math.round((new Date(s.ended_at) - new Date(s.started_at)) / 1000));
+    const allRts = responses.map(r => r.rt_ms).filter(v => v != null);
+    const allErrs = rows.flatMap(r => r.errs);
+    const byAcc = rows.slice().sort((a, b) => b.acc - a.acc || b.n - a.n);
+    const easiest = byAcc.slice(0, 3);
+    const hardest = byAcc.slice(-3).reverse();
+    const confusions = [];
+    for (const r of rows)
+      for (const [c, n] of Object.entries(r.conf))
+        if (c !== "(none)") confusions.push({ asked: r.name, clicked: c, n });
+    confusions.sort((a, b) => b.n - a.n);
+    const topConf = confusions.filter(c => c.n >= 2).slice(0, 5);
+    const missTaps = responses.filter(r => r.clicked === "(none)").length;
+
+    const findings = [];
+    findings.push(sessions.length + " participants (" + compl.length + " completed). Overall accuracy: " +
+      pct(totalOk / responses.length) + " across " + responses.length + " responses.");
+    if (allRts.length) findings.push("Median response time: " + (med(allRts) / 1000).toFixed(1) + "s per item" +
+      (durs.length ? "; median completion time: " + Math.round(med(durs) / 60 * 10) / 10 + " min." : "."));
+    if (easiest.length) findings.push("Best known: " + easiest.map(r => displayOf(r.name) + " (" + pct(r.acc) + ")").join(", ") + ".");
+    if (hardest.length) findings.push("Least known: " + hardest.map(r => displayOf(r.name) + " (" + pct(r.acc) + ")").join(", ") + ".");
+    if (allErrs.length) findings.push("Median miss distance (wrong answers, to nearest border of the target): " + med(allErrs) + " km.");
+    for (const c of topConf)
+      findings.push(displayOf(c.asked) + " was mistaken for " + displayOf(c.clicked) + " " + c.n + " times.");
+    if (missTaps) findings.push(missTaps + " taps landed on no country (sea or inert territory).");
+
+    let html = "<h2 style='margin-bottom:2px'>" + quiz.name + "</h2>" +
+      "<p style='color:var(--muted);font-size:13px'>Code " + code + " · " + (quiz.lang === "el" ? "Greek" : "English") +
+      " · " + quiz.countries.length + " items · feedback " + (quiz.feedback ? "on" : "off") +
+      " · zoom " + (quiz.zoom ? "on" : "off") + " · generated " + new Date().toLocaleString() + "</p>";
+    html += "<div class='stat-cards'>" +
+      "<div class='stat'><b>" + sessions.length + "</b>participants</div>" +
+      "<div class='stat'><b>" + pct(totalOk / responses.length) + "</b>accuracy</div>" +
+      "<div class='stat'><b>" + (allRts.length ? (med(allRts) / 1000).toFixed(1) + "s" : "—") + "</b>median RT</div>" +
+      "<div class='stat'><b>" + (allErrs.length ? med(allErrs) + " km" : "—") + "</b>median miss distance</div></div>";
+    html += "<h3 style='font-size:16px'>Main findings</h3><ul class='findings'>" +
+      findings.map(f => "<li>" + f + "</li>").join("") + "</ul>";
+    html += "<div class='rep-maps'>" +
+      "<div><h3>Accuracy by country</h3><div id='rmap-acc'></div><div class='cap'>Green = always correct · red = never correct · white = not asked</div></div>" +
+      "<div><h3>Every tap</h3><div id='rmap-taps'></div><div class='cap'>Green dot = correct tap · red dot = wrong tap</div></div></div>";
+    html += "<h3 style='font-size:16px'>Per-country results</h3>" +
+      "<table class='rep'><thead><tr><th>#</th><th>Country</th><th>Asked</th><th>Correct</th><th>Median RT</th><th>Median miss</th><th>Most confused with</th></tr></thead><tbody>" +
+      rows.map((r, i) => {
+        const confTop = Object.entries(r.conf).sort((a, b) => b[1] - a[1])[0];
+        return "<tr><td>" + (i + 1) + "</td><td>" + displayOf(r.name) + "</td><td>" + r.n + "</td><td>" + pct(r.acc) +
+          "</td><td>" + (r.rts.length ? (med(r.rts) / 1000).toFixed(1) + "s" : "—") +
+          "</td><td>" + (r.errs.length ? med(r.errs) + " km" : "—") +
+          "</td><td>" + (confTop ? (confTop[0] === "(none)" ? "(no country)" : displayOf(confTop[0])) + " ×" + confTop[1] : "—") + "</td></tr>";
+      }).join("") + "</tbody></table>";
+    body.innerHTML = html;
+
+    miniMap(document.getElementById("rmap-acc"), f => {
+      const s = stats[f.properties.name];
+      return s && s.n ? d3.interpolateRdYlGn(s.ok / s.n) : "#ffffff";
+    });
+    const dots = responses.filter(r => r.lon != null)
+      .map(r => ({ lon: r.lon, lat: r.lat, color: r.correct ? "#16a34a" : "#dc2626" }));
+    miniMap(document.getElementById("rmap-taps"), () => "#ffffff", dots);
+  }
+
+  // ================= Error metrics =================
+  const _borderCache = {};
+  function borderVertices(name) {
+    if (_borderCache[name]) return _borderCache[name];
+    const f = byName[name];
+    if (!f) return (_borderCache[name] = []);
+    const polys = f.geometry.type === "Polygon" ? [f.geometry.coordinates] : f.geometry.coordinates;
+    const v = [];
+    for (const p of polys) for (const ring of p) for (const pt of ring) v.push(pt);
+    return (_borderCache[name] = v);
+  }
+  function borderKm(lon, lat, name) {
+    const v = borderVertices(name);
+    if (!v.length) return null;
+    let best = Infinity;
+    for (const pt of v) {
+      const d = d3.geoDistance([lon, lat], pt);
+      if (d < best) best = d;
+    }
+    return Math.round(best * 6371);
+  }
+
   // ================= CSV export =================
   function csvCell(v) {
     if (v === null || v === undefined) return "";
@@ -1341,15 +1554,16 @@
       "age", "gender", "education", "location", ...customLabels,
       "screen_w", "screen_h", "user_agent",
       "item", "asked", "asked_en", "clicked", "clicked_en", "correct", "rt_ms",
-      "click_lon", "click_lat", "zoom_level", "error_km"];
+      "click_lon", "click_lat", "zoom_level", "error_km_border", "error_km_centroid"];
     const rows = [head.join(",")];
     for (const r of responses) {
       const s = sessions.find(x => x.id === r.session_id) || {};
       const demo = s.demo || {}, cust = s.custom || {};
-      let errKm = "";
-      if (r.correct) errKm = 0;
+      let errB = "", errC = "";
+      if (r.correct) { errB = 0; errC = 0; }
       else if (r.lon !== null && r.lon !== undefined && byName[r.asked]) {
-        errKm = Math.round(d3.geoDistance([r.lon, r.lat], d3.geoCentroid(byName[r.asked])) * 6371);
+        errB = borderKm(r.lon, r.lat, r.asked) ?? "";
+        errC = Math.round(d3.geoDistance([r.lon, r.lat], d3.geoCentroid(byName[r.asked])) * 6371);
       }
       rows.push([
         r.session_id, code, quiz.name, s.started_at || "", s.ended_at || "", s.complete ? 1 : 0,
@@ -1358,7 +1572,7 @@
         s.sw || "", s.sh || "", s.ua || "",
         r.item, r.asked, displayOf(r.asked), r.clicked,
         r.clicked === "(none)" ? "(none)" : displayOf(r.clicked),
-        r.correct ? 1 : 0, r.rt_ms, r.lon ?? "", r.lat ?? "", r.zoom_level ?? "", errKm
+        r.correct ? 1 : 0, r.rt_ms, r.lon ?? "", r.lat ?? "", r.zoom_level ?? "", errB, errC
       ].map(csvCell).join(","));
     }
     const blob = new Blob(["﻿" + rows.join("\n")], { type: "text/csv;charset=utf-8" });
