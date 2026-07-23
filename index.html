@@ -3,29 +3,37 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Borderline — Find the Country</title>
+<title>Borderline — Find every country</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700;9..144,900&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/topojson/3.0.2/topojson.min.js"></script>
 <style>
   :root {
-    --ink: #1e293b;
-    --muted: #64748b;
-    --line: #cbd5e1;
-    --frame: #94a3b8;
-    --sea: #edf4f9;
-    --accent: #2563eb;
-    --good: #16a34a;
-    --good-soft: #86efac;
-    --bad: #dc2626;
-    --bad-soft: #fca5a5;
-    --hover: #dbeafe;
+    --paper: #F4F0E8;
+    --ink: #002147;
+    --muted: #6B6459;
+    --line: #C9C2B8;
+    --frame: #002147;
+    --sea: #E7E1D3;
+    --accent: #002147;
+    --crimson: #A50021;
+    --marigold: #FDB94E;
+    --butter: #FDE169;
+    --good: #1D7A44;
+    --good-soft: #BFE0C8;
+    --bad: #A50021;
+    --bad-soft: #EEC3CA;
+    --hover: #FAE3B3;
+    --serif: 'Fraunces', Georgia, serif;
   }
   * { margin: 0; padding: 0; box-sizing: border-box; }
   html, body { height: 100%; overflow: hidden; }
   @supports (height: 100dvh) { body { height: 100dvh; } }
   body {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-    background: #ffffff;
+    font-family: 'Space Grotesk', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+    background: var(--paper);
     color: var(--ink);
     display: flex;
     flex-direction: column;
@@ -44,6 +52,7 @@
   #header.active { display: flex; }
   #prompt { font-size: 15px; color: var(--muted); }
   #target-name {
+    font-family: var(--serif);
     font-size: clamp(20px, 3.5vw, 28px);
     font-weight: 700;
     color: var(--ink);
@@ -179,14 +188,39 @@
     display: none;
     align-items: center;
     justify-content: center;
-    background: rgba(255,255,255,0.96);
+    background: rgba(244,240,232,0.98);
     z-index: 10;
     overflow-y: auto;
+    overflow-x: hidden;
   }
   .screen.active { display: flex; }
   .panel { max-width: 560px; width: 92%; text-align: center; padding: 32px 8px; }
-  .panel h1 { font-size: clamp(28px, 5vw, 40px); margin-bottom: 6px; }
+  .panel h1 {
+    font-family: var(--serif);
+    font-weight: 900;
+    letter-spacing: -1px;
+    font-size: clamp(28px, 5vw, 40px);
+    margin-bottom: 6px;
+  }
   .panel .sub { color: var(--muted); font-size: 16px; margin-bottom: 30px; }
+  #wordmark {
+    font-size: clamp(46px, 9vw, 78px);
+    line-height: 1;
+    margin-bottom: 0;
+  }
+  .brand-rule {
+    border-top: 3px dashed var(--crimson);
+    width: 100vw;
+    margin: 20px 0 16px calc(50% - 50vw);
+  }
+  .tagline {
+    font-size: 13px;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    color: var(--ink);
+    opacity: 0.75;
+    margin-bottom: 30px;
+  }
   .mode-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -194,17 +228,31 @@
     margin-bottom: 18px;
   }
   .mode-btn {
-    border: 1.5px solid var(--line);
+    border: 2px solid var(--ink);
     background: #fff;
-    border-radius: 14px;
-    padding: 18px 14px;
+    border-radius: 10px;
+    padding: 16px 14px;
     cursor: pointer;
     text-align: left;
-    transition: border-color 0.15s, box-shadow 0.15s;
+    transition: border-color 0.15s, box-shadow 0.15s, transform 0.1s;
   }
-  .mode-btn:hover { border-color: var(--accent); box-shadow: 0 2px 10px rgba(37,99,235,0.12); }
-  .mode-btn .m-title { font-size: 18px; font-weight: 700; margin-bottom: 3px; }
+  .mode-btn:hover {
+    border-color: var(--crimson);
+    box-shadow: 0 3px 12px rgba(165,0,33,0.16);
+    transform: translateY(-1px);
+  }
+  .mode-btn .m-title {
+    font-family: var(--serif);
+    font-size: 19px;
+    font-weight: 600;
+    color: var(--ink);
+    margin-bottom: 3px;
+  }
   .mode-btn .m-desc { font-size: 13px; color: var(--muted); }
+  .mode-btn[data-mode="survival"] { background: var(--crimson); border-color: var(--crimson); }
+  .mode-btn[data-mode="survival"]:hover { border-color: var(--ink); }
+  .mode-btn[data-mode="survival"] .m-title { color: var(--butter); }
+  .mode-btn[data-mode="survival"] .m-desc { color: var(--paper); }
   #diff-row {
     display: flex;
     gap: 8px;
@@ -213,26 +261,27 @@
     flex-wrap: wrap;
   }
   .diff-btn {
-    border: 1.5px solid var(--line);
+    border: 1.5px solid rgba(0,33,71,0.35);
     background: #fff;
     border-radius: 999px;
     padding: 8px 16px;
     font-size: 14px;
     cursor: pointer;
-    color: var(--muted);
+    color: var(--ink);
+    font-family: inherit;
   }
   .diff-btn.active {
-    border-color: var(--accent);
-    color: var(--accent);
+    border-color: var(--ink);
+    color: var(--paper);
     font-weight: 700;
-    background: #eff6ff;
+    background: var(--ink);
   }
   .diff-btn .d-count { margin-left: 6px; font-size: 12px; opacity: 0.85; }
   .footnote { font-size: 12px; color: var(--muted); }
 
   /* ---------- Results ---------- */
   #results-panel h1 { margin-bottom: 2px; }
-  .big-score { font-size: 56px; font-weight: 800; color: var(--accent); margin: 10px 0 2px; }
+  .big-score { font-family: var(--serif); font-size: 56px; font-weight: 900; color: var(--crimson); margin: 10px 0 2px; }
   .result-stats {
     display: flex;
     justify-content: center;
@@ -261,10 +310,10 @@
     font-size: 15px;
     cursor: pointer;
   }
-  .primary-btn { background: var(--accent); color: #fff; border: none; }
-  .primary-btn:hover { background: #1d4ed8; }
-  .ghost-btn { background: #fff; color: var(--ink); border: 1.5px solid var(--line); }
-  .ghost-btn:hover { border-color: var(--muted); }
+  .primary-btn { background: var(--ink); color: var(--paper); border: none; font-family: inherit; }
+  .primary-btn:hover { background: #01162F; }
+  .ghost-btn { background: #fff; color: var(--ink); border: 1.5px solid var(--line); font-family: inherit; }
+  .ghost-btn:hover { border-color: var(--ink); }
 
   #loading { color: var(--muted); font-size: 16px; }
 </style>
@@ -300,8 +349,9 @@
   <!-- Start screen -->
   <div class="screen active" id="start-screen">
     <div class="panel">
-      <h1>🌍 Borderline</h1>
-      <p class="sub" data-i18n="sub">A country's name appears — click it on the map.<br>Small island nations are shown as circles. Scroll or pinch to zoom, drag to pan.</p>
+      <h1 id="wordmark">Borderline</h1>
+      <div class="brand-rule"></div>
+      <p class="tagline" data-i18n="tagline">Find every country</p>
       <div id="loading" data-i18n="loading">Loading world map…</div>
       <div id="diff-row" style="display:none">
         <button class="diff-btn" data-diff="easy"><span class="d-label"></span><span class="d-count"></span></button>
@@ -314,7 +364,7 @@
         <button class="mode-btn" data-mode="marathon"><div class="m-title" data-i18n="mMara">Marathon</div><div class="m-desc" id="mara-desc"></div></button>
         <button class="mode-btn" data-mode="survival"><div class="m-title" data-i18n="mSurv">Survival ∞</div><div class="m-desc"><span data-i18n="mSurvD">Play until your first mistake. High score: </span><span id="hiscore">0</span></div></button>
       </div>
-      <p class="footnote" data-i18n="footnote">Prototype v0.6 — research mode coming next.</p>
+      <p class="footnote" data-i18n="hint">Tiny island nations appear as circles — pinch or scroll to zoom.</p>
     </div>
   </div>
 
@@ -345,18 +395,18 @@
   // ================= Languages =================
   const STR = {
     en: {
-      sub: "A country's name appears — click it on the map.<br>Small island nations are shown as circles. Scroll or pinch to zoom, drag to pan.",
+      tagline: "Find every country",
+      hint: "Tiny island nations appear as circles — pinch or scroll to zoom.",
       loading: "Loading world map…",
       loadError: "Could not load map data — check your internet connection and reload the page.",
       find: "Find this country:",
       score: "Score", question: "Question", streakLbl: "Streak", best: "Best streak",
       endGame: "End game",
-      m10: "Quick — 10", m10d: "10 random countries",
-      m20: "Classic — 20", m20d: "20 random countries",
+      m10: "Quick", m10d: "10 random countries",
+      m20: "Classic", m20d: "20 random countries",
       mMara: "Marathon", maraD: n => "All " + n + " countries in one round",
       mSurv: "Survival ∞", mSurvD: "Play until your first mistake. High score: ",
       diffEasy: "Easy", diffMod: "Moderate", diffAll: "All countries",
-      footnote: "Prototype v0.6 — research mode coming next.",
       results: "Results", gameOver: "Game over!", survEnd: "Survival ended",
       accuracy: "Accuracy", avgTime: "Avg. time",
       correctToast: n => "Correct! " + n + " ✓",
@@ -368,18 +418,18 @@
       again: "Play again", change: "Change mode"
     },
     el: {
-      sub: "Εμφανίζεται το όνομα μιας χώρας — πάτησέ τη στον χάρτη.<br>Τα μικρά νησιωτικά κράτη εμφανίζονται ως κύκλοι. Ζουμ με τροχό ή τσίμπημα, σύρσιμο για μετακίνηση.",
+      tagline: "Βρες κάθε χώρα",
+      hint: "Τα μικροσκοπικά νησιωτικά κράτη εμφανίζονται ως κύκλοι — ζουμ με τσίμπημα ή τροχό.",
       loading: "Φόρτωση παγκόσμιου χάρτη…",
       loadError: "Δεν ήταν δυνατή η φόρτωση του χάρτη — έλεγξε τη σύνδεση στο διαδίκτυο και ανανέωσε τη σελίδα.",
       find: "Βρες αυτή τη χώρα:",
       score: "Σκορ", question: "Ερώτηση", streakLbl: "Σερί", best: "Καλύτερο σερί",
       endGame: "Τερματισμός",
-      m10: "Γρήγορο — 10", m10d: "10 τυχαίες χώρες",
-      m20: "Κλασικό — 20", m20d: "20 τυχαίες χώρες",
+      m10: "Γρήγορο", m10d: "10 τυχαίες χώρες",
+      m20: "Κλασικό", m20d: "20 τυχαίες χώρες",
       mMara: "Μαραθώνιος", maraD: n => "Όλες οι " + n + " χώρες σε έναν γύρο",
       mSurv: "Επιβίωση ∞", mSurvD: "Παίξε μέχρι το πρώτο λάθος. Ρεκόρ: ",
       diffEasy: "Εύκολο", diffMod: "Μέτριο", diffAll: "Όλες οι χώρες",
-      footnote: "Πρωτότυπο v0.6 — ερευνητική λειτουργία σύντομα.",
       results: "Αποτελέσματα", gameOver: "Τέλος παιχνιδιού!", survEnd: "Τέλος επιβίωσης",
       accuracy: "Ακρίβεια", avgTime: "Μέσος χρόνος",
       correctToast: n => "Σωστά! " + n + " ✓",
