@@ -283,6 +283,18 @@
   }
   .diff-btn .d-count { margin-left: 6px; font-size: 12px; opacity: 0.85; }
   .footnote { font-size: 12px; color: var(--muted); }
+  .colophon {
+    margin-top: 20px;
+    font-size: 12px;
+    color: var(--muted);
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    align-items: center;
+  }
+  .colophon .dot { opacity: 0.5; }
+  .colophon a { color: var(--crimson); text-decoration: none; border-bottom: 1px solid transparent; }
+  .colophon a:hover { border-bottom-color: var(--crimson); }
 
   /* ---------- Results ---------- */
   #results-panel h1 { margin-bottom: 2px; }
@@ -370,6 +382,11 @@
         <button class="mode-btn" data-mode="survival"><div class="m-title" data-i18n="mSurv">Survival ∞</div><div class="m-desc"><span data-i18n="mSurvD">Play until your first mistake. High score: </span><span id="hiscore">0</span></div></button>
       </div>
       <p class="footnote" data-i18n="hint">Tiny island nations appear as circles — pinch or scroll to zoom.</p>
+      <p class="colophon">
+        <span data-i18n="copyright">© 2026 Borderline</span>
+        <span class="dot">·</span>
+        <a href="research.html" data-i18n="researchLink">For researchers</a>
+      </p>
     </div>
   </div>
 
@@ -402,6 +419,8 @@
     en: {
       tagline: "Find every country",
       hint: "Tiny island nations appear as circles — pinch or scroll to zoom.",
+      copyright: "© 2026 Borderline",
+      researchLink: "For researchers",
       loading: "Loading world map…",
       loadError: "Could not load map data — check your internet connection and reload the page.",
       find: "Find this country:",
@@ -425,6 +444,8 @@
     el: {
       tagline: "Βρες κάθε χώρα",
       hint: "Τα μικροσκοπικά νησιωτικά κράτη εμφανίζονται ως κύκλοι.",
+      copyright: "© 2026 Borderline",
+      researchLink: "Για ερευνητές",
       loading: "Φόρτωση παγκόσμιου χάρτη…",
       loadError: "Δεν ήταν δυνατή η φόρτωση του χάρτη — έλεγξε τη σύνδεση στο διαδίκτυο και ανανέωσε τη σελίδα.",
       find: "Βρες αυτή τη χώρα:",

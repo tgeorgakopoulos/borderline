@@ -4,21 +4,25 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Borderline Research</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700;9..144,900&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/topojson/3.0.2/topojson.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <style>
   :root {
-    --ink: #1e293b; --muted: #64748b; --line: #cbd5e1; --frame: #94a3b8;
-    --sea: #edf4f9; --accent: #2563eb; --good: #16a34a; --good-soft: #86efac;
-    --bad: #dc2626; --bad-soft: #fca5a5; --hover: #dbeafe;
+    --paper: #F4F0E8; --ink: #002147; --muted: #6B6459; --line: #C9C2B8; --frame: #002147;
+    --sea: #E7E1D3; --accent: #002147; --crimson: #A50021; --marigold: #FDB94E; --butter: #FDE169;
+    --good: #1D7A44; --good-soft: #BFE0C8; --bad: #A50021; --bad-soft: #EEC3CA; --hover: #FAE3B3;
+    --serif: 'Fraunces', Georgia, serif;
   }
   * { margin: 0; padding: 0; box-sizing: border-box; }
   html, body { height: 100%; overflow: hidden; }
   @supports (height: 100dvh) { body { height: 100dvh; } }
   body {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-    background: #fff; color: var(--ink); display: flex; flex-direction: column;
+    font-family: 'Space Grotesk', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+    background: var(--paper); color: var(--ink); display: flex; flex-direction: column;
   }
   #header {
     display: none;
@@ -38,7 +42,7 @@
   }
   #header.active { display: flex; }
   #prompt { font-size: 13px; color: var(--muted); white-space: nowrap; }
-  #target-name { font-size: clamp(18px, 3vw, 26px); font-weight: 700; white-space: nowrap; }
+  #target-name { font-family: var(--serif); font-size: clamp(18px, 3vw, 26px); font-weight: 700; white-space: nowrap; }
   #item-count { font-size: 13px; color: var(--muted); white-space: nowrap; }
   #map-wrap { flex: 1; position: relative; min-height: 0; }
   #map { width: 100%; height: 100%; display: block; touch-action: none; }
@@ -74,15 +78,18 @@
   #toast.bad { background: var(--bad); }
   .screen {
     position: absolute; inset: 0; display: none; align-items: flex-start;
-    justify-content: center; background: rgba(255,255,255,0.98); z-index: 10; overflow-y: auto;
+    justify-content: center; background: rgba(244,240,232,0.98); z-index: 10; overflow-y: auto;
   }
   .screen.active { display: flex; }
   .panel { max-width: 620px; width: 94%; padding: 40px 8px 60px; }
   .panel.center { text-align: center; }
-  .panel h1 { font-size: clamp(24px, 4vw, 34px); margin-bottom: 8px; }
-  .panel h2 { font-size: 20px; margin: 22px 0 10px; }
+  .panel h1 { font-family: var(--serif); font-weight: 900; letter-spacing: -0.5px; font-size: clamp(24px, 4vw, 34px); margin-bottom: 8px; }
+  .panel h2 { font-family: var(--serif); font-weight: 700; font-size: 21px; margin: 22px 0 10px; }
   .panel .sub { color: var(--muted); font-size: 15px; margin-bottom: 24px; }
-  .consent-text { white-space: pre-wrap; font-size: 15px; line-height: 1.55; text-align: left; border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px; margin-bottom: 22px; max-height: 45vh; overflow-y: auto; }
+  .consent-text { white-space: pre-wrap; font-size: 15px; line-height: 1.55; text-align: left; border: 1px solid var(--line); border-radius: 10px; padding: 16px; margin-bottom: 22px; max-height: 45vh; overflow-y: auto; background: #fff; }
+  #wordmark { font-family: var(--serif); font-weight: 900; letter-spacing: -1px; font-size: clamp(38px, 8vw, 60px); line-height: 1; margin-bottom: 0; }
+  .brand-rule { border-top: 3px dashed var(--crimson); width: 100vw; margin: 18px 0 14px calc(50% - 50vw); }
+  .wm-sub { font-size: 12px; letter-spacing: 3px; text-transform: uppercase; color: var(--ink); opacity: 0.7; margin-bottom: 28px; }
   .field { margin-bottom: 16px; text-align: left; }
   .field label { display: block; font-size: 14px; font-weight: 600; margin-bottom: 5px; }
   .field input[type=text], .field input[type=number], .field input[type=email], .field input[type=password], .field select, .field textarea {
@@ -93,41 +100,42 @@
   .primary-btn, .ghost-btn, .mini-btn {
     border-radius: 10px; padding: 12px 22px; font-size: 15px; cursor: pointer; font-family: inherit;
   }
-  .primary-btn { background: var(--accent); color: #fff; border: none; }
-  .primary-btn:hover { background: #1d4ed8; }
+  .primary-btn { background: var(--ink); color: var(--paper); border: none; }
+  .primary-btn:hover { background: #01162F; }
   .ghost-btn { background: #fff; color: var(--ink); border: 1.5px solid var(--line); }
-  .ghost-btn:hover { border-color: var(--muted); }
-  .mini-btn { padding: 4px 10px; font-size: 13px; background: #fff; border: 1px solid var(--line); border-radius: 7px; }
-  .mini-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .ghost-btn:hover { border-color: var(--ink); }
+  .mini-btn { padding: 4px 10px; font-size: 13px; background: #fff; border: 1px solid var(--line); border-radius: 7px; color: var(--ink); }
+  .mini-btn:hover { border-color: var(--crimson); color: var(--crimson); }
   .btn-row { display: flex; gap: 10px; justify-content: center; margin-top: 8px; flex-wrap: wrap; }
   .note { font-size: 12.5px; color: var(--muted); margin-top: 18px; }
   .admin-wide { max-width: 780px; }
   table.qlist { width: 100%; border-collapse: collapse; font-size: 14px; }
-  table.qlist th, table.qlist td { text-align: left; padding: 8px 8px; border-bottom: 1px solid #e2e8f0; }
+  table.qlist th, table.qlist td { text-align: left; padding: 8px 8px; border-bottom: 1px solid var(--line); }
   table.qlist th { color: var(--muted); font-weight: 600; font-size: 12.5px; }
   .chk-row { display: flex; gap: 16px; flex-wrap: wrap; font-size: 14px; }
   .chk-row label { display: flex; align-items: center; gap: 6px; font-weight: 400; }
-  #c-list { list-style: none; border: 1px solid #e2e8f0; border-radius: 10px; max-height: 260px; overflow-y: auto; margin-top: 10px; }
-  #c-list li { display: flex; align-items: center; gap: 8px; padding: 5px 10px; border-bottom: 1px solid #f1f5f9; font-size: 14px; }
+  #c-list { list-style: none; border: 1px solid var(--line); border-radius: 10px; max-height: 260px; overflow-y: auto; margin-top: 10px; background: #fff; }
+  #c-list li { display: flex; align-items: center; gap: 8px; padding: 5px 10px; border-bottom: 1px solid #ECE7DC; font-size: 14px; }
   #c-list li .cname { flex: 1; }
   #c-list li button { border: none; background: none; cursor: pointer; color: var(--muted); font-size: 14px; padding: 2px 5px; }
-  #c-list li button:hover { color: var(--accent); }
+  #c-list li button:hover { color: var(--crimson); }
   .cq-row { display: flex; gap: 8px; margin-bottom: 8px; }
   .cq-row input { flex: 1; padding: 7px 10px; border: 1.5px solid var(--line); border-radius: 8px; font-size: 14px; font-family: inherit; }
   .inline-add { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
   .inline-add input, .inline-add select { padding: 8px 10px; border: 1.5px solid var(--line); border-radius: 8px; font-size: 14px; font-family: inherit; }
   #loading { color: var(--muted); font-size: 16px; }
-  .badge { display: inline-block; font-size: 12px; background: #eff6ff; color: var(--accent); border-radius: 999px; padding: 2px 10px; margin-left: 8px; }
+  .badge { display: inline-block; font-size: 12px; background: var(--hover); color: var(--ink); border-radius: 999px; padding: 2px 10px; margin-left: 8px; }
   .stat-cards { display: flex; gap: 12px; flex-wrap: wrap; margin: 16px 0; }
-  .stat { background: #f8fafc; border-radius: 10px; padding: 12px 20px; font-size: 13px; color: var(--muted); }
-  .stat b { display: block; font-size: 22px; color: var(--ink); }
+  .stat { background: #fff; border: 1px solid var(--line); border-radius: 10px; padding: 12px 20px; font-size: 13px; color: var(--muted); }
+  .stat b { display: block; font-family: var(--serif); font-weight: 700; font-size: 24px; color: var(--crimson); }
   .findings { margin: 10px 0 6px 20px; font-size: 14.5px; line-height: 1.6; }
   .rep-maps { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; margin: 14px 0; }
   .rep-maps h3 { font-size: 15px; margin-bottom: 6px; }
   .rep-maps .cap { font-size: 12px; color: var(--muted); margin-top: 4px; }
   table.rep { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 8px; }
-  table.rep th, table.rep td { text-align: left; padding: 5px 8px; border-bottom: 1px solid #eef2f7; }
+  table.rep th, table.rep td { text-align: left; padding: 5px 8px; border-bottom: 1px solid #ECE7DC; }
   table.rep th { color: var(--muted); font-size: 12px; }
+  .rep-maps h3, #report-body h3 { font-family: var(--serif); font-weight: 700; }
 </style>
 </head>
 <body>
@@ -150,8 +158,9 @@
 
   <div class="screen active" id="home-screen">
     <div class="panel center">
-      <h1>🌍 Borderline Research</h1>
-      <p class="sub" id="home-sub">Participant access & researcher panel</p>
+      <div id="wordmark">Borderline</div>
+      <div class="brand-rule"></div>
+      <p class="wm-sub">Research platform</p>
       <div id="loading">Loading world map…</div>
       <div id="home-actions" style="display:none">
         <div class="field" style="max-width:320px;margin:0 auto 14px">
@@ -1446,7 +1455,7 @@
     for (const f of quizPool.concat(territories)) {
       const d = p(f);
       if (!d) continue;
-      out += "<path d='" + d + "' fill='" + (fillFor(f) || "#ffffff") + "' stroke='#cbd5e1' stroke-width='0.4'></path>";
+      out += "<path d='" + d + "' fill='" + (fillFor(f) || "#ffffff") + "' stroke='#C9C2B8' stroke-width='0.4'></path>";
     }
     if (dots) for (const dt of dots) {
       const xy = proj([dt.lon, dt.lat]);
