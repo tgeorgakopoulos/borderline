@@ -867,7 +867,10 @@
     if (!quizPool.length) return;
 
     const yT = millerY(LAT_TOP), yB = millerY(LAT_BOT);
-    const s = Math.min((w - 2 * MARGIN) / (2 * Math.PI), (h - 2 * MARGIN) / (yT - yB));
+    const sW = (w - 2 * MARGIN) / (2 * Math.PI);
+    const sH = (h - 2 * MARGIN) / (yT - yB);
+    // Portrait screens: fit map height, let it bleed off the sides (pan to reach the rest)
+    const s = (h > w * 1.05) ? sH : Math.min(sW, sH);
     const ty = h / 2 + s * (yT + yB) / 2;
     projection.scale(s).translate([w / 2, ty]);
 

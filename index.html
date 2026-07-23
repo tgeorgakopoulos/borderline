@@ -99,6 +99,11 @@
     cursor: pointer;
   }
   .lang-btn.active { background: var(--accent); color: #fff; }
+  @media (max-width: 620px) {
+    #lang-toggle { top: 10px; right: 10px; }
+    .lang-btn { padding: 6px 11px; font-size: 12px; }
+    .screen .panel { padding-top: 72px; }
+  }
 
   /* ---------- Map ---------- */
   #map-wrap { flex: 1; position: relative; min-height: 0; }
@@ -419,7 +424,7 @@
     },
     el: {
       tagline: "Βρες κάθε χώρα",
-      hint: "Τα μικροσκοπικά νησιωτικά κράτη εμφανίζονται ως κύκλοι — ζουμ με τσίμπημα ή τροχό.",
+      hint: "Τα μικροσκοπικά νησιωτικά κράτη εμφανίζονται ως κύκλοι.",
       loading: "Φόρτωση παγκόσμιου χάρτη…",
       loadError: "Δεν ήταν δυνατή η φόρτωση του χάρτη — έλεγξε τη σύνδεση στο διαδίκτυο και ανανέωσε τη σελίδα.",
       find: "Βρες αυτή τη χώρα:",
@@ -901,7 +906,10 @@
     if (!quizPool.length) return;
 
     const yT = millerY(LAT_TOP), yB = millerY(LAT_BOT);
-    const s = Math.min((w - 2 * MARGIN) / (2 * Math.PI), (h - 2 * MARGIN) / (yT - yB));
+    const sW = (w - 2 * MARGIN) / (2 * Math.PI);
+    const sH = (h - 2 * MARGIN) / (yT - yB);
+    // Portrait screens: fit map height, let it bleed off the sides (pan to reach the rest)
+    const s = (h > w * 1.05) ? sH : Math.min(sW, sH);
     const ty = h / 2 + s * (yT + yB) / 2;
     projection.scale(s).translate([w / 2, ty]);
 
