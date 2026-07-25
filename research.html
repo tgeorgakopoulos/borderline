@@ -187,6 +187,7 @@
         <div class="btn-row">
           <button class="primary-btn" id="join-btn">Join study</button>
           <button class="ghost-btn" id="admin-btn">Researcher panel</button>
+          <button class="ghost-btn" id="diag-btn">Diagnostics</button>
         </div>
         <p class="note">Responses upload securely to the study database.<br>If the connection drops, they are kept on this device and synced automatically.</p>
       </div>
@@ -263,6 +264,19 @@
           <button class="primary-btn" id="q-save">Save quiz</button>
           <button class="ghost-btn" id="q-cancel">Cancel</button>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="screen" id="diag-screen">
+    <div class="panel">
+      <h1>Connection diagnostics</h1>
+      <p class="sub">Run this in the same browser where data seems stuck.</p>
+      <pre id="diag-out" style="white-space:pre-wrap;font-family:ui-monospace,Menlo,monospace;font-size:12.5px;line-height:1.6;background:#fff;border:1px solid var(--line);border-radius:10px;padding:14px;max-height:52vh;overflow:auto"></pre>
+      <div class="btn-row" style="justify-content:flex-start;margin-top:14px">
+        <button class="primary-btn" id="diag-run">Run tests</button>
+        <button class="ghost-btn" id="diag-flush">Force upload pending</button>
+        <button class="ghost-btn" id="diag-back">Back</button>
       </div>
     </div>
   </div>
@@ -689,9 +703,24 @@
   const SB_KEY = "sb_publishable_rGJM-aMTCw1lTnkxKVQDVg_WpTH6DIN";
   const sb = supabase.createClient(SB_URL, SB_KEY);
 
+  // Safari private mode / file:// origins can throw on localStorage — keep a memory fallback
+  const MEM = {};
+  const LS = {
+    get(k) {
+      try { const v = localStorage.getItem(k); if (v !== null) return v; } catch (e) {}
+      return MEM[k] !== undefined ? MEM[k] : null;
+    },
+    set(k, v) {
+      MEM[k] = v;
+      try { localStorage.setItem(k, v); return true; } catch (e) { return false; }
+    }
+  };
+
+  let lastSyncError = "";
+
   const Q = {
-    _get() { try { return JSON.parse(localStorage.getItem("gqr-pending")) || []; } catch (e) { return []; } },
-    _set(a) { localStorage.setItem("gqr-pending", JSON.stringify(a)); },
+    _get() { try { return JSON.parse(LS.get("gqr-pending")) || []; } catch (e) { return []; } },
+    _set(a) { LS.set("gqr-pending", JSON.stringify(a)); },
     count() { return this._get().length; },
     push(op) { const a = this._get(); a.push(op); this._set(a); this.flush(); },
     _flushing: false,
@@ -709,12 +738,15 @@
             else if (op.type === "response") ({ error: err } = await sb.from("responses").insert(op.payload));
           } catch (e) { err = e; }
           if (err) {
-            try { localStorage.setItem("gqr-lasterr", String(err.message || err).slice(0, 300)); } catch (e) {}
+            lastSyncError = (op.type + ": " + (err.message || err.hint || JSON.stringify(err))).slice(0, 300);
+            LS.set("gqr-lasterr", lastSyncError);
             break;
           }
           a.shift();
           this._set(a);
+          lastSyncError = "";
         }
+        if (!a.length) { lastSyncError = ""; LS.set("gqr-lasterr", ""); }
       } finally {
         this._flushing = false;
         updateSyncBadge();
@@ -728,15 +760,19 @@
 
   function updateSyncBadge() {
     const n = Q.count();
+    const err = LS.get("gqr-lasterr") || "";
     const el = document.getElementById("sync-badge");
     if (el) {
       el.textContent = n ? n + " records waiting to upload" : "all data synced";
-      el.title = n ? (localStorage.getItem("gqr-lasterr") || "") : "";
+      el.title = n ? err : "";
     }
     const p = document.getElementById("pending-note");
     if (p) {
       p.style.display = n ? "block" : "none";
-      if (n) p.textContent = n + " records are stored on this device and will upload automatically when online.";
+      if (n) {
+        p.innerHTML = n + " responses are stored on this device and will upload automatically." +
+          (err ? "<br><span style='color:var(--crimson)'>Last error: " + err.replace(/</g, "&lt;") + "</span>" : "");
+      }
     }
   }
 
@@ -1472,6 +1508,86 @@
       toast("Save failed — check connection and login", "bad");
     }
   });
+
+  // ================= Diagnostics =================
+  document.getElementById("diag-btn").addEventListener("click", () => { show("diag-screen"); runDiagnostics(); });
+  document.getElementById("diag-back").addEventListener("click", () => show("home-screen"));
+  document.getElementById("diag-run").addEventListener("click", runDiagnostics);
+  document.getElementById("diag-flush").addEventListener("click", async () => {
+    await Q.flush();
+    runDiagnostics();
+  });
+
+  async function runDiagnostics() {
+    const out = document.getElementById("diag-out");
+    const lines = [];
+    const say = s => { lines.push(s); out.textContent = lines.join("\n"); };
+
+    say("Page URL:      " + location.href);
+    say("Origin:        " + location.origin);
+    if (location.protocol === "file:")
+      say("  ⚠ Opened as a local file. Browsers block database calls from file:// —\n    use the GitHub Pages address instead.");
+    say("Browser:       " + navigator.userAgent);
+    say("Online flag:   " + navigator.onLine);
+    say("");
+
+    let lsOk = false;
+    try {
+      localStorage.setItem("gqr-test", "1");
+      localStorage.removeItem("gqr-test");
+      lsOk = true;
+    } catch (e) {}
+    say("Local storage: " + (lsOk ? "working" : "BLOCKED (private browsing?) — using memory fallback"));
+    say("Pending queue: " + Q.count() + " record(s)");
+    const le = LS.get("gqr-lasterr");
+    if (le) say("Last error:    " + le);
+    say("");
+
+    say("Testing database read…");
+    try {
+      const { data, error } = await sb.from("quizzes").select("code").limit(5);
+      if (error) say("  READ FAILED: " + (error.message || JSON.stringify(error)));
+      else say("  read OK — " + data.length + " quiz code(s) visible: " + data.map(d => d.code).join(", "));
+    } catch (e) {
+      say("  READ FAILED (network/CORS): " + (e.message || e));
+    }
+
+    say("Testing database write permission…");
+    try {
+      const probe = "diag-" + Math.random().toString(36).slice(2, 10);
+      const { error } = await sb.from("sessions").insert({ id: probe, quiz_code: "__DIAGNOSTIC__" });
+      if (!error) {
+        say("  write OK (probe row created — safe to ignore, quiz code __DIAGNOSTIC__)");
+      } else {
+        const msg = (error.message || "") + " " + (error.code || "");
+        if (/foreign key|violates foreign key|23503/i.test(msg))
+          say("  write OK — permissions fine (probe rejected only because the test quiz doesn't exist)");
+        else if (/row-level security|42501/i.test(msg))
+          say("  WRITE BLOCKED by security rules: " + error.message +
+              "\n    → the participant insert policies may be missing. Re-run supabase_setup.sql.");
+        else if (/schema cache|PGRST204/i.test(msg))
+          say("  SCHEMA MISMATCH: " + error.message +
+              "\n    → a column is missing. Run the ALTER TABLE statement, then reload Supabase's schema cache\n      (Supabase → Settings → API → Reload schema cache, or just wait a minute).");
+        else
+          say("  WRITE FAILED: " + error.message + " [" + (error.code || "no code") + "]");
+      }
+    } catch (e) {
+      say("  WRITE FAILED (network/CORS): " + (e.message || e));
+    }
+
+    say("");
+    say("Testing responses table columns…");
+    try {
+      const { error } = await sb.from("responses").select("id,session_id,sea,zoom_level").limit(1);
+      if (error) say("  COLUMN CHECK FAILED: " + error.message +
+        "\n    → if it mentions 'sea', run:  alter table responses add column if not exists sea boolean not null default false;");
+      else say("  responses table has the expected columns (including 'sea')");
+    } catch (e) {
+      say("  COLUMN CHECK FAILED: " + (e.message || e));
+    }
+    say("");
+    say("Done. Copy this whole report if you need help interpreting it.");
+  }
 
   // ================= Auto-analysis report =================
   document.getElementById("report-back").addEventListener("click", () => show("admin-screen"));
