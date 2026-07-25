@@ -112,6 +112,23 @@
   table.qlist { width: 100%; border-collapse: collapse; font-size: 14px; }
   table.qlist th, table.qlist td { text-align: left; padding: 8px 8px; border-bottom: 1px solid var(--line); }
   table.qlist th { color: var(--muted); font-weight: 600; font-size: 12.5px; }
+  table.qlist td:last-child { text-align: right; white-space: nowrap; width: 1%; }
+  .act-bar { display: inline-flex; align-items: center; gap: 2px; }
+  .act {
+    border: none; background: none; cursor: pointer; font-family: inherit;
+    font-size: 12.5px; color: var(--muted); padding: 4px 7px; border-radius: 6px;
+    white-space: nowrap; transition: background 0.12s, color 0.12s;
+  }
+  .act:hover { background: #fff; color: var(--ink); }
+  .act-strong { color: var(--ink); font-weight: 500; }
+  .act-strong:hover { background: var(--hover); }
+  .act-danger { color: #B9AFA2; font-size: 16px; line-height: 1; padding: 3px 8px; }
+  .act-danger:hover { background: var(--bad-soft); color: var(--crimson); }
+  .act-sep { width: 1px; height: 14px; background: var(--line); margin: 0 5px; display: inline-block; }
+  @media (max-width: 720px) {
+    .act { padding: 4px 5px; font-size: 12px; }
+    .act-sep { margin: 0 2px; }
+  }
   .chk-row { display: flex; gap: 16px; flex-wrap: wrap; font-size: 14px; }
   .chk-row label { display: flex; align-items: center; gap: 6px; font-weight: 400; }
   #c-list { list-style: none; border: 1px solid var(--line); border-radius: 10px; max-height: 260px; overflow-y: auto; margin-top: 10px; background: #fff; }
@@ -1276,29 +1293,40 @@
         "<td>" + q.countries.length + "</td><td>" + done + " / " + ses.length + "</td><td></td>";
       tr.querySelector("a").addEventListener("click", ev => { ev.preventDefault(); openBuilder(q); });
       const cell = tr.lastElementChild;
-      const mk = (label, fn) => {
+      const bar = document.createElement("div");
+      bar.className = "act-bar";
+      cell.appendChild(bar);
+      const mk = (label, title, fn, cls) => {
         const b = document.createElement("button");
-        b.className = "mini-btn"; b.textContent = label; b.style.marginRight = "5px";
+        b.className = "act" + (cls ? " " + cls : "");
+        b.textContent = label;
+        b.title = title;
         b.addEventListener("click", fn);
-        cell.appendChild(b);
+        bar.appendChild(b);
+        return b;
       };
-      mk("Copy link", () => {
+      const sep = () => bar.appendChild(document.createElement("span")).className = "act-sep";
+
+      mk("Copy link", "Copy the participant link", () => {
         const link = location.href.split("#")[0] + "#" + q.code;
         navigator.clipboard ? navigator.clipboard.writeText(link).then(() => toast("Link copied", "good"))
           : prompt("Participant link:", link);
       });
-      mk("Test run", () => { location.hash = q.code; tryJoin(q.code); });
-      mk("Duplicate", () => {
+      mk("Test run", "Take the quiz yourself", () => { location.hash = q.code; tryJoin(q.code); });
+      sep();
+      mk("Duplicate", "Create a copy of this quiz", () => {
         openBuilder(q, true);
         toast("Duplicate — a new code is assigned when you save", "good");
       });
-      mk("Results", () => openReport(q.code));
-      mk("Export CSV", () => exportCSV(q.code));
-      mk("Delete", async () => {
+      sep();
+      mk("Results", "Open the analysis report", () => openReport(q.code), "act-strong");
+      mk("CSV", "Download raw data as CSV", () => exportCSV(q.code));
+      sep();
+      mk("×", "Delete this quiz and all its data", async () => {
         if (!confirm("Delete quiz \"" + q.name + "\" and all its data?")) return;
         try { await Store.deleteQuiz(q.code); } catch (e) { toast("Delete failed", "bad"); }
         renderQuizList();
-      });
+      }, "act-danger");
       tbody.appendChild(tr);
     }
   }
