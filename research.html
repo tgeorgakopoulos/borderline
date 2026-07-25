@@ -1288,6 +1288,10 @@
           : prompt("Participant link:", link);
       });
       mk("Test run", () => { location.hash = q.code; tryJoin(q.code); });
+      mk("Duplicate", () => {
+        openBuilder(q, true);
+        toast("Duplicate — a new code is assigned when you save", "good");
+      });
       mk("Results", () => openReport(q.code));
       mk("Export CSV", () => exportCSV(q.code));
       mk("Delete", async () => {
@@ -1299,10 +1303,11 @@
     }
   }
 
-  function openBuilder(q) {
-    editingCode = q ? q.code : null;
-    document.getElementById("builder-title").textContent = q ? "Edit quiz — " + q.code : "New quiz";
-    document.getElementById("q-name").value = q ? q.name : "";
+  function openBuilder(q, asCopy) {
+    editingCode = (q && !asCopy) ? q.code : null;
+    document.getElementById("builder-title").textContent =
+      !q ? "New quiz" : asCopy ? "Duplicate of " + q.name : "Edit quiz — " + q.code;
+    document.getElementById("q-name").value = q ? (asCopy ? q.name + " (copy)" : q.name) : "";
     document.getElementById("q-lang").value = q ? q.lang : "en";
     document.getElementById("q-feedback").checked = q ? !!q.feedback : false;
     document.getElementById("q-zoom").checked = q ? !!q.zoom : true;
