@@ -1288,6 +1288,13 @@
     renderQuizList();
     show("admin-screen");
   }
+
+  // keep the dashboard live: refresh counts while it is on screen and when the tab regains focus
+  const adminVisible = () =>
+    document.getElementById("admin-screen").classList.contains("active") &&
+    document.getElementById("admin-list-view").style.display !== "none";
+  setInterval(() => { if (adminVisible() && !document.hidden) renderQuizList(true); }, 20000);
+  document.addEventListener("visibilitychange", () => { if (!document.hidden && adminVisible()) renderQuizList(true); });
   document.getElementById("admin-btn").addEventListener("click", async () => {
     const { data } = await sb.auth.getSession();
     if (data.session) openAdmin();
@@ -1312,7 +1319,8 @@
   });
   document.getElementById("sync-now-btn").addEventListener("click", async () => {
     await Q.flush();
-    toast(Q.count() ? Q.count() + " records still pending" : "All data synced", Q.count() ? "bad" : "good");
+    await renderQuizList();
+    toast(Q.count() ? Q.count() + " records still pending on this device" : "Up to date", Q.count() ? "bad" : "good");
   });
   document.getElementById("admin-home-btn").addEventListener("click", () => show("home-screen"));
   document.getElementById("new-quiz-btn").addEventListener("click", () => openBuilder(null));
@@ -1324,15 +1332,16 @@
     if (!editing) renderQuizList();
   }
 
-  async function renderQuizList() {
+  async function renderQuizList(silent) {
     const tbody = document.getElementById("quiz-rows");
-    tbody.innerHTML = "<tr><td colspan='6' style='color:var(--muted)'>Loading…</td></tr>";
+    if (!silent) tbody.innerHTML = "<tr><td colspan='6' style='color:var(--muted)'>Loading…</td></tr>";
     let quizzes = [], sessions = [];
     try {
       quizzes = await Store.quizzes();
       sessions = await Store.allSessions();
     } catch (e) {
-      toast("Could not load quizzes — check your connection and login", "bad");
+      if (!silent) toast("Could not load quizzes — check your connection and login", "bad");
+      else return;
     }
     tbody.innerHTML = "";
     document.getElementById("no-quizzes").style.display = quizzes.length ? "none" : "block";
