@@ -733,13 +733,29 @@
           const op = a[0];
           let err = null;
           try {
-            if (op.type === "session") ({ error: err } = await sb.from("sessions").upsert(op.payload));
+            // plain insert (never upsert): upsert needs a SELECT policy, which participants
+            // deliberately do not have. Session ids are unique per run, so conflicts can't occur.
+            if (op.type === "session") ({ error: err } = await sb.from("sessions").insert(op.payload));
             else if (op.type === "session_update") ({ error: err } = await sb.from("sessions").update(op.payload.patch).eq("id", op.payload.id));
             else if (op.type === "response") ({ error: err } = await sb.from("responses").insert(op.payload));
           } catch (e) { err = e; }
+          // a row already uploaded (duplicate key) counts as done — don't block the queue
+          if (err && (err.code === "23505" || /duplicate key/i.test(err.message || ""))) err = null;
           if (err) {
             lastSyncError = (op.type + ": " + (err.message || err.hint || JSON.stringify(err))).slice(0, 300);
             LS.set("gqr-lasterr", lastSyncError);
+            const networkish = !err.code && /fetch|network|timeout|load failed/i.test(err.message || "");
+            op._tries = (op._tries || 0) + 1;
+            if (!networkish && op._tries >= 6) {
+              // park it so the rest of the queue can still upload; nothing is discarded
+              const parked = JSON.parse(LS.get("gqr-failed") || "[]");
+              parked.push({ op, error: lastSyncError, at: new Date().toISOString() });
+              LS.set("gqr-failed", JSON.stringify(parked));
+              a.shift();
+              this._set(a);
+              continue;
+            }
+            this._set(a);
             break;
           }
           a.shift();
@@ -1514,6 +1530,14 @@
   document.getElementById("diag-back").addEventListener("click", () => show("home-screen"));
   document.getElementById("diag-run").addEventListener("click", runDiagnostics);
   document.getElementById("diag-flush").addEventListener("click", async () => {
+    // put any parked records back at the front of the queue and try again
+    const parked = JSON.parse(LS.get("gqr-failed") || "[]");
+    if (parked.length) {
+      const q = Q._get();
+      Q._set(parked.map(p => { delete p.op._tries; return p.op; }).concat(q));
+      LS.set("gqr-failed", "[]");
+    }
+    LS.set("gqr-lasterr", "");
     await Q.flush();
     runDiagnostics();
   });
@@ -1539,6 +1563,11 @@
     } catch (e) {}
     say("Local storage: " + (lsOk ? "working" : "BLOCKED (private browsing?) — using memory fallback"));
     say("Pending queue: " + Q.count() + " record(s)");
+    const parked = JSON.parse(LS.get("gqr-failed") || "[]");
+    if (parked.length) {
+      say("Parked:        " + parked.length + " record(s) set aside after repeated failures");
+      say("  first error: " + parked[0].error);
+    }
     const le = LS.get("gqr-lasterr");
     if (le) say("Last error:    " + le);
     say("");
