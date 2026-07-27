@@ -954,7 +954,10 @@
       instrTitle: "Instructions",
       instr: n => "The name of a country will appear at the top of the screen. Tap or click that country on the map. There are " + n + " countries in total. Answer as accurately and as quickly as you can.",
       instrZoom: "You can zoom and pan the map.", instrNoZoom: "The map view is fixed.",
-      start: "Start", find: "Find this country:", item: "Item", recorded: "Got it 👍",
+      start: "Start", find: "Find this country:", findGr: "Find this place:",
+      instrGr: n => "The name of a place in Greece will appear at the top of the screen. Tap the map where you think it is. There are " + n + " places in total. Answer as accurately and as quickly as you can.",
+      loadingGreece: "Loading the map of Greece…",
+      item: "Item", recorded: "Got it 👍",
       correct: "Correct ✓", wrong: (c, t) => "That was " + c + " — the correct answer is highlighted",
       doneTitle: "Thank you!", doneDefault: "Your responses have been recorded. You may close this page.",
       yourTaps: "Your answers — green = correct, red = wrong",
@@ -971,7 +974,10 @@
       instrTitle: "Οδηγίες",
       instr: n => "Στο πάνω μέρος της οθόνης θα εμφανίζεται το όνομα μιας χώρας. Πατήστε τη χώρα αυτή στον χάρτη. Συνολικά θα δείτε " + n + " χώρες. Απαντήστε όσο πιο σωστά και γρήγορα μπορείτε.",
       instrZoom: "Μπορείτε να κάνετε ζουμ και μετακίνηση στον χάρτη.", instrNoZoom: "Η προβολή του χάρτη είναι σταθερή.",
-      start: "Έναρξη", find: "Βρείτε αυτή τη χώρα:", item: "Ερώτημα", recorded: "Καταγράφηκε 👍",
+      start: "Έναρξη", find: "Βρείτε αυτή τη χώρα:", findGr: "Βρείτε αυτόν τον τόπο:",
+      instrGr: n => "Στο πάνω μέρος της οθόνης θα εμφανίζεται το όνομα ενός τόπου της Ελλάδας. Πατήστε στον χάρτη εκεί όπου πιστεύετε ότι βρίσκεται. Συνολικά θα δείτε " + n + " τόπους. Απαντήστε όσο πιο σωστά και γρήγορα μπορείτε.",
+      loadingGreece: "Φόρτωση χάρτη της Ελλάδας…",
+      item: "Ερώτημα", recorded: "Καταγράφηκε 👍",
       yourTaps: "Οι απαντήσεις σας — πράσινο = σωστό, κόκκινο = λάθος",
       correct: "Σωστό ✓", wrong: (c, t) => "Αυτό ήταν: " + c + " — η σωστή απάντηση επισημαίνεται",
       doneTitle: "Ευχαριστούμε!", doneDefault: "Οι απαντήσεις σας καταγράφηκαν. Μπορείτε να κλείσετε τη σελίδα.",
@@ -1416,7 +1422,8 @@
   function instructions(quiz, demo, custom) {
     document.getElementById("instr-title").textContent = rt("instrTitle");
     document.getElementById("instr-body").textContent =
-      rt("instr")(quiz.countries.length) + " " + rt(quiz.zoom ? "instrZoom" : "instrNoZoom");
+      rt(quiz.type === "greece" ? "instrGr" : "instr")(quiz.countries.length) +
+      " " + rt(quiz.zoom ? "instrZoom" : "instrNoZoom");
     document.getElementById("start-btn").textContent = rt("start");
     document.getElementById("start-btn").onclick = () => startStudy(quiz, demo, custom);
     show("instr-screen");
@@ -1424,7 +1431,7 @@
 
   async function startStudy(quiz, demo, custom) {
     if (quiz.type === "greece") {
-      document.getElementById("instr-body").textContent = rt("loadingGreece") || "…";
+      document.getElementById("instr-body").textContent = rt("loadingGreece");
       const ok = await loadGreece();
       if (!ok) { toast("Could not load the map of Greece", "bad"); return; }
       drawGreeceMap();
@@ -1447,7 +1454,7 @@
     };
     show(null);
     document.getElementById("header").classList.add("active");
-    document.getElementById("prompt").textContent = rt("find");
+    document.getElementById("prompt").textContent = rt(quiz.type === "greece" ? "findGr" : "find");
     if (quiz.zoom) {
       svg.call(zoom);
       document.getElementById("zoom-controls").style.display = "flex";
@@ -1996,9 +2003,17 @@
     const wrap = document.getElementById("map-wrap");
     const w = wrap.clientWidth, h = wrap.clientHeight;
     if (!gGeo.loaded) return;
-    gProjection.fitExtent([[12, 12], [w - 12, h - 12]], gGeo.greece);
+    // leave room for the floating prompt card at the top
+    const top = 78, pad = 14;
+    gProjection.fitExtent([[pad, top], [w - pad, h - pad]], gGeo.greece);
     gLayer.selectAll("path").attr("d", gPath);
     gTargets.selectAll("*").remove();
+    gDots.selectAll("*").remove();
+    // the world map's pan boundary would crop Greece — widen it for this map
+    const b = gPath.bounds(gGeo.greece);
+    const mx = (b[1][0] - b[0][0]) * 0.6, my = (b[1][1] - b[0][1]) * 0.6;
+    zoom.translateExtent([[b[0][0] - mx, b[0][1] - my], [b[1][0] + mx, b[1][1] + my]]);
+    svg.call(zoom.transform, d3.zoomIdentity);
   }
 
   function drawGreeceMap() {
