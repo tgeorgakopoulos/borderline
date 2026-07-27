@@ -768,7 +768,8 @@
       dgFirstErr: "  first error: ", dgLastErr: "Last error:",
       dgRead: "Testing database read…", dgWrite: "Testing database write permission…",
       dgCols: "Testing responses table columns…",
-      dgDone: "Done. Copy this whole report if you need help interpreting it."
+      dgDone: "Done. Copy this whole report if you need help interpreting it.",
+      langDefaults: "Default consent and completion texts switched to this language"
     },
     el: {
       platform: "Ερευνητική πλατφόρμα", loadingMap: "Φόρτωση παγκόσμιου χάρτη…",
@@ -849,7 +850,8 @@
       dgFirstErr: "  πρώτο σφάλμα: ", dgLastErr: "Τελευταίο σφάλμα:",
       dgRead: "Έλεγχος ανάγνωσης βάσης…", dgWrite: "Έλεγχος δικαιωμάτων εγγραφής…",
       dgCols: "Έλεγχος στηλών του πίνακα responses…",
-      dgDone: "Ολοκληρώθηκε. Αντιγράψτε ολόκληρη την αναφορά αν χρειάζεστε βοήθεια."
+      dgDone: "Ολοκληρώθηκε. Αντιγράψτε ολόκληρη την αναφορά αν χρειάζεστε βοήθεια.",
+      langDefaults: "Τα προεπιλεγμένα κείμενα συγκατάθεσης και ολοκλήρωσης άλλαξαν γλώσσα"
     }
   };
   let uiLang = "en";
@@ -917,6 +919,9 @@
     }
   };
   const rt = k => (RSTR[lang] || RSTR.en)[k];
+
+  const CONSENT_TEMPLATE_EL = "Σας προσκαλούμε να συμμετάσχετε σε μια ερευνητική μελέτη σχετικά με τις γεωγραφικές γνώσεις.\n\nΑν συμφωνήσετε να συμμετάσχετε, θα απαντήσετε πρώτα σε λίγες σύντομες ερωτήσεις για εσάς και στη συνέχεια θα σας εμφανίζονται ονόματα χωρών, μία κάθε φορά. Το ζητούμενο είναι να εντοπίσετε κάθε χώρα στον παγκόσμιο χάρτη, πατώντας το σημείο όπου πιστεύετε ότι βρίσκεται.\n\nΗ συμμετοχή σας είναι ανώνυμη και εθελοντική. Οι απαντήσεις σας θα χρησιμοποιηθούν αποκλειστικά για ερευνητικούς σκοπούς. Μπορείτε να διακόψετε τη συμμετοχή σας οποιαδήποτε στιγμή κλείνοντας αυτή τη σελίδα, χωρίς καμία συνέπεια.\n\nΚαταγράφονται τεχνικές πληροφορίες της συσκευής σας (μέγεθος οθόνης και τύπος προγράμματος περιήγησης) για τη διασφάλιση της ποιότητας των δεδομένων. Δεν συλλέγονται ούτε αποθηκεύονται στοιχεία ταυτοποίησης — όπως ονοματεπώνυμο, διεύθυνση IP ή στοιχεία λογαριασμού.\n\nΑν συμφωνείτε να συμμετάσχετε, πατήστε το κουμπί παρακάτω.";
+  const DONE_TEMPLATE_EL = "Ευχαριστούμε θερμά για τη συμμετοχή σας.\n\nΟι απαντήσεις σας καταγράφηκαν και θα συμβάλουν στην έρευνά μας. Μπορείτε τώρα να κλείσετε αυτή τη σελίδα.";
 
   const CONSENT_TEMPLATE = "You are invited to take part in a research study on geographic knowledge.\n\nIf you agree to participate, you will first answer a few short questions about yourself, and then you will be shown the names of countries, one at a time. Your task is to locate each country on a world map by tapping or clicking it.\n\nYour responses are anonymous and will be used for research purposes only. Participation is voluntary and you may stop at any time by closing this page.\n\nTechnical information about your device (screen size and browser type) is recorded to ensure data quality. No identifying information — such as your name, IP address, or account details — is collected or stored with your responses.\n\nIf you agree to participate, press the button below.";
 
@@ -1656,6 +1661,20 @@
     document.getElementById("cq-rows").appendChild(row);
   }
   document.getElementById("cq-add").addEventListener("click", () => addCqRow("", ""));
+
+  // Switching the participant language swaps in that language's default texts,
+  // but never overwrites wording the researcher has actually edited.
+  document.getElementById("q-lang").addEventListener("change", ev => {
+    const el = ev.target.value === "el";
+    const consent = document.getElementById("q-consent");
+    const done = document.getElementById("q-done");
+    const untouchedConsent = [CONSENT_TEMPLATE, CONSENT_TEMPLATE_EL, ""].includes(consent.value.trim())
+      || consent.value.trim() === CONSENT_TEMPLATE.trim() || consent.value.trim() === CONSENT_TEMPLATE_EL.trim();
+    const untouchedDone = [DONE_TEMPLATE_EL, ""].includes(done.value.trim());
+    if (untouchedConsent) consent.value = el ? CONSENT_TEMPLATE_EL : CONSENT_TEMPLATE;
+    if (untouchedDone) done.value = el ? DONE_TEMPLATE_EL : "";
+    if (untouchedConsent || untouchedDone) toast(u("langDefaults"), "good");
+  });
 
   function fillDatalist() {
     document.getElementById("dl-countries").innerHTML =
