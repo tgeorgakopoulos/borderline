@@ -256,6 +256,11 @@
 
       <div id="admin-edit-view" style="display:none">
         <h2 id="builder-title">New quiz</h2>
+        <div class="field"><label data-ui="quizType">Quiz type</label>
+          <select id="q-type">
+            <option value="world" data-ui="typeWorld">World — find countries</option>
+            <option value="greece" data-ui="typeGreece">Greece — find places</option>
+          </select></div>
         <div class="field"><label data-ui="quizName">Quiz name</label><input type="text" id="q-name" data-ui-ph="quizNamePh" placeholder="e.g., Pilot study A"></div>
         <div class="field"><label data-ui="participantLang">Participant language</label>
           <select id="q-lang"><option value="en">English</option><option value="el">Ελληνικά</option></select></div>
@@ -283,6 +288,16 @@
               <option value="moderate" data-ui="tierMod">Moderate tier</option>
               <option value="hard" data-ui="tierHard">Hard tier</option>
               <option value="all" data-ui="tierAll">All 195</option>
+            </select>
+            <select id="gtier-sel" style="display:none">
+              <option value="t1" data-ui="gTier1">Tier 1 (best known)</option>
+              <option value="t2" data-ui="gTier2">Tier 2</option>
+              <option value="t3" data-ui="gTier3">Tier 3 (least known)</option>
+              <option value="island" data-ui="gIslands">All islands</option>
+              <option value="city" data-ui="gCities">All cities</option>
+              <option value="mountain" data-ui="gMountains">All mountains</option>
+              <option value="region" data-ui="gRegions">All regions</option>
+              <option value="all" data-ui="gAll">Everything</option>
             </select>
             <button class="mini-btn" id="tier-add" data-ui="addTier">Add tier</button>
             <input type="text" id="c-search" list="dl-countries" data-ui-ph="addOnePh" placeholder="Add one country…">
@@ -769,7 +784,24 @@
       dgRead: "Testing database read…", dgWrite: "Testing database write permission…",
       dgCols: "Testing responses table columns…",
       dgDone: "Done. Copy this whole report if you need help interpreting it.",
-      langDefaults: "Default consent and completion texts switched to this language"
+      langDefaults: "Default consent and completion texts switched to this language",
+      quizType: "Quiz type", typeWorld: "World — find countries", typeGreece: "Greece — find places",
+      gTier1: "Tier 1 (best known)", gTier2: "Tier 2", gTier3: "Tier 3 (least known)",
+      gIslands: "All islands", gCities: "All cities", gMountains: "All mountains",
+      gRegions: "All regions", gAll: "Everything",
+      itemsLabelGr: "Places in Greece — asked in this exact order",
+      addOnePhGr: "Add one place…", notRecognizedGr: "Place not recognized",
+      itemsNeededGr: "Add at least one place",
+      catIsland: "island", catCity: "city", catMountain: "mountain", catRegion: "region",
+      hMedianErr: "median error", hErrByItem: "Error distance by place",
+      thPlace: "Place", thCat: "Category", thMedErr: "Median error", thBest: "Closest", thWorst: "Furthest",
+      fMedErr: km => "Median error distance across all responses: " + km + " km.",
+      fClosest: l => "Located most precisely: " + l + ".",
+      fFurthest: l => "Located least precisely: " + l + ".",
+      capTapsGr: "Blue dot = participant tap · gold square = true location",
+      hTapMapGr: "Taps and true locations",
+      regionsNeedFile: "Regions need boundary data — add greece_regions.geojson to the site folder",
+      loadingGreece: "Loading map of Greece…"
     },
     el: {
       platform: "Ερευνητική πλατφόρμα", loadingMap: "Φόρτωση παγκόσμιου χάρτη…",
@@ -851,7 +883,24 @@
       dgRead: "Έλεγχος ανάγνωσης βάσης…", dgWrite: "Έλεγχος δικαιωμάτων εγγραφής…",
       dgCols: "Έλεγχος στηλών του πίνακα responses…",
       dgDone: "Ολοκληρώθηκε. Αντιγράψτε ολόκληρη την αναφορά αν χρειάζεστε βοήθεια.",
-      langDefaults: "Τα προεπιλεγμένα κείμενα συγκατάθεσης και ολοκλήρωσης άλλαξαν γλώσσα"
+      langDefaults: "Τα προεπιλεγμένα κείμενα συγκατάθεσης και ολοκλήρωσης άλλαξαν γλώσσα",
+      quizType: "Τύπος κουίζ", typeWorld: "Κόσμος — εύρεση χωρών", typeGreece: "Ελλάδα — εύρεση τόπων",
+      gTier1: "Βαθμίδα 1 (πιο γνωστά)", gTier2: "Βαθμίδα 2", gTier3: "Βαθμίδα 3 (λιγότερο γνωστά)",
+      gIslands: "Όλα τα νησιά", gCities: "Όλες οι πόλεις", gMountains: "Όλα τα βουνά",
+      gRegions: "Όλες οι περιφέρειες", gAll: "Τα πάντα",
+      itemsLabelGr: "Τόποι στην Ελλάδα — με αυτή ακριβώς τη σειρά",
+      addOnePhGr: "Προσθήκη τόπου…", notRecognizedGr: "Ο τόπος δεν αναγνωρίστηκε",
+      itemsNeededGr: "Προσθέστε τουλάχιστον έναν τόπο",
+      catIsland: "νησί", catCity: "πόλη", catMountain: "βουνό", catRegion: "περιφέρεια",
+      hMedianErr: "διάμεσο σφάλμα", hErrByItem: "Απόσταση σφάλματος ανά τόπο",
+      thPlace: "Τόπος", thCat: "Κατηγορία", thMedErr: "Διάμ. σφάλμα", thBest: "Ακριβέστερα", thWorst: "Λιγότερο ακριβώς",
+      fMedErr: km => "Διάμεση απόσταση σφάλματος σε όλες τις απαντήσεις: " + km + " χλμ.",
+      fClosest: l => "Εντοπίστηκαν ακριβέστερα: " + l + ".",
+      fFurthest: l => "Εντοπίστηκαν λιγότερο ακριβώς: " + l + ".",
+      capTapsGr: "Μπλε κουκκίδα = επιλογή συμμετέχοντα · χρυσό τετράγωνο = πραγματική θέση",
+      hTapMapGr: "Επιλογές και πραγματικές θέσεις",
+      regionsNeedFile: "Οι περιφέρειες χρειάζονται δεδομένα ορίων — προσθέστε το greece_regions.geojson",
+      loadingGreece: "Φόρτωση χάρτη Ελλάδας…"
     }
   };
   let uiLang = "en";
@@ -880,6 +929,17 @@
   }
   document.querySelectorAll(".uilang-btn").forEach(b =>
     b.addEventListener("click", () => setUiLang(b.dataset.uilang)));
+
+  // ================= Greece edition dataset =================
+  // [english, greek, category (i=island c=city m=mountain r=region), tier, lon, lat]
+  // Island coordinates are derived from the Natural Earth 10m polygons themselves.
+  const GREECE_PLACES = [["Crete","Κρήτη","i",1,24.851,35.2345],["Euboea","Εύβοια","i",1,23.7936,38.5611],["Lesvos","Λέσβος","i",1,26.2435,39.1723],["Rhodes","Ρόδος","i",1,27.9503,36.1864],["Chios","Χίος","i",1,26.0158,38.404],["Kefalonia","Κεφαλονιά","i",1,20.5754,38.2264],["Corfu","Κέρκυρα","i",1,19.8458,39.6391],["Samos","Σάμος","i",1,26.8143,37.7357],["Lemnos","Λήμνος","i",2,25.2259,39.9216],["Naxos","Νάξος","i",2,25.4884,37.062],["Zakynthos","Ζάκυνθος","i",2,20.7747,37.7876],["Thasos","Θάσος","i",2,24.6552,40.6893],["Andros","Άνδρος","i",2,24.8513,37.8619],["Lefkada","Λευκάδα","i",2,20.6464,38.7086],["Karpathos","Κάρπαθος","i",3,27.1573,35.5972],["Kos","Κως","i",2,27.1304,36.8182],["Kythira","Κύθηρα","i",2,22.985,36.2525],["Ikaria","Ικαρία","i",3,26.1498,37.597],["Skyros","Σκύρος","i",3,24.5531,38.8708],["Paros","Πάρος","i",2,25.196,37.0626],["Tinos","Τήνος","i",2,25.1328,37.609],["Milos","Μήλος","i",2,24.4401,36.7074],["Kea","Κέα","i",3,24.3314,37.6146],["Amorgos","Αμοργός","i",3,25.9032,36.8473],["Ios","Ίος","i",3,25.3307,36.7228],["Santorini","Σαντορίνη","i",1,25.4404,36.3973],["Mykonos","Μύκονος","i",1,25.3766,37.4564],["Samothrace","Σαμοθράκη","i",3,25.5807,40.4589],["Kalymnos","Κάλυμνος","i",3,26.9721,36.9929],["Syros","Σύρος","i",2,24.9177,37.4354],["Sifnos","Σίφνος","i",3,24.7074,36.9777],["Serifos","Σέριφος","i",3,24.484,37.1626],["Astypalaia","Αστυπάλαια","i",3,26.3495,36.5721],["Leros","Λέρος","i",3,26.8327,37.1508],["Patmos","Πάτμος","i",3,26.5571,37.3314],["Symi","Σύμη","i",3,27.8304,36.5852],["Kasos","Κάσος","i",3,26.9279,35.3965],["Alonnisos","Αλόννησος","i",3,23.9111,39.2139],["Skopelos","Σκόπελος","i",3,23.6906,39.1331],["Skiathos","Σκιάθος","i",2,23.4589,39.1734],["Poros","Πόρος","i",2,23.4807,37.5258],["Hydra","Ύδρα","i",2,23.4728,37.3376],["Spetses","Σπέτσες","i",2,23.1331,37.265],["Aegina","Αίγινα","i",2,23.4927,37.7357],["Salamis","Σαλαμίνα","i",1,23.4821,37.9405],["Ithaca","Ιθάκη","i",2,20.6868,38.4026],["Nisyros","Νίσυρος","i",3,27.1671,36.5862],["Tilos","Τήλος","i",3,27.362,36.4282],["Folegandros","Φολέγανδρος","i",3,24.9044,36.6307],["Anafi","Ανάφη","i",3,25.7828,36.3738],["Kimolos","Κίμωλος","i",3,24.5614,36.815],["Chalki","Χάλκη","i",3,27.5681,36.229],["Paxi","Παξοί","i",3,20.1619,39.2074],["Athens","Αθήνα","c",1,23.7275,37.9838],["Thessaloniki","Θεσσαλονίκη","c",1,22.9444,40.6401],["Patras","Πάτρα","c",1,21.7346,38.2466],["Heraklion","Ηράκλειο","c",1,25.1442,35.3387],["Larissa","Λάρισα","c",1,22.4179,39.639],["Volos","Βόλος","c",1,22.944,39.3666],["Ioannina","Ιωάννινα","c",1,20.8537,39.665],["Kavala","Καβάλα","c",2,24.4129,40.9396],["Chania","Χανιά","c",1,24.0158,35.5138],["Kalamata","Καλαμάτα","c",1,22.1122,37.0389],["Serres","Σέρρες","c",2,23.5424,41.0856],["Alexandroupoli","Αλεξανδρούπολη","c",1,25.8743,40.8476],["Xanthi","Ξάνθη","c",2,24.8838,41.1355],["Katerini","Κατερίνη","c",2,22.5024,40.2719],["Trikala","Τρίκαλα","c",2,21.7679,39.555],["Lamia","Λαμία","c",2,22.4344,38.8996],["Komotini","Κομοτηνή","c",2,25.4058,41.1224],["Rhodes (city)","Ρόδος (πόλη)","c",2,28.2225,36.4341],["Chalkida","Χαλκίδα","c",2,23.596,38.4625],["Corfu (city)","Κέρκυρα (πόλη)","c",2,19.9217,39.6243],["Agrinio","Αγρίνιο","c",2,21.4079,38.6214],["Kozani","Κοζάνη","c",2,21.789,40.3007],["Veria","Βέροια","c",2,22.2028,40.525],["Drama","Δράμα","c",2,24.1467,41.1497],["Tripoli","Τρίπολη","c",2,22.3794,37.5089],["Mytilene","Μυτιλήνη","c",2,26.554,39.1069],["Sparta","Σπάρτη","c",2,22.4297,37.0739],["Nafplio","Ναύπλιο","c",2,22.8069,37.5675],["Preveza","Πρέβεζα","c",3,20.7519,38.956],["Corinth","Κόρινθος","c",2,22.9358,37.9407],["Pyrgos","Πύργος","c",3,21.44,37.675],["Rethymno","Ρέθυμνο","c",2,24.4735,35.3648],["Karditsa","Καρδίτσα","c",3,21.9214,39.3646],["Edessa","Έδεσσα","c",3,22.048,40.8014],["Florina","Φλώρινα","c",3,21.409,40.7826],["Kastoria","Καστοριά","c",3,21.2686,40.5167],["Arta","Άρτα","c",3,20.9856,39.16],["Igoumenitsa","Ηγουμενίτσα","c",3,20.2653,39.5036],["Kalambaka","Καλαμπάκα","c",3,21.63,39.705],["Grevena","Γρεβενά","c",3,21.4275,40.0844],["Kilkis","Κιλκίς","c",3,22.8722,40.9942],["Orestiada","Ορεστιάδα","c",3,26.5303,41.5033],["Amfissa","Άμφισσα","c",3,22.3781,38.525],["Livadeia","Λιβαδειά","c",3,22.8747,38.4353],["Argos","Άργος","c",3,22.7247,37.6314],["Agios Nikolaos","Άγιος Νικόλαος","c",3,25.7167,35.1908],["Ierapetra","Ιεράπετρα","c",3,25.7411,35.0106],["Naousa","Νάουσα","c",3,22.07,40.6289],["Ptolemaida","Πτολεμαΐδα","c",3,21.6789,40.515],["Mount Olympus","Όλυμπος","m",1,22.3586,40.085],["Parnassus","Παρνασσός","m",1,22.6228,38.5356],["Taygetus","Ταΰγετος","m",1,22.3467,36.9556],["Smolikas","Σμόλικας","m",3,20.9139,40.0889],["Psiloritis (Ida)","Ψηλορείτης","m",2,24.7742,35.2281],["Lefka Ori","Λευκά Όρη","m",2,24.0167,35.3],["Parnitha","Πάρνηθα","m",1,23.7231,38.1719],["Pelion","Πήλιο","m",1,23.0333,39.4167],["Ossa (Kissavos)","Όσσα (Κίσσαβος)","m",3,22.6833,39.79],["Mount Athos","Άθως","m",1,24.2333,40.1572],["Giona","Γκιώνα","m",3,22.2856,38.6339],["Vardousia","Βαρδούσια","m",3,22.1667,38.6833],["Kyllini (Ziria)","Κυλλήνη (Ζήρεια)","m",3,22.3833,37.9333],["Erymanthos","Ερύμανθος","m",3,21.8333,37.9667],["Grammos","Γράμμος","m",3,20.7917,40.3333],["Tymfi (Gamila)","Τύμφη (Γκαμήλα)","m",3,20.8,39.9833],["Dirfys","Δίρφυς","m",3,23.85,38.6167],["Chelmos (Aroania)","Χελμός (Αροάνια)","m",3,22.1833,38],["Mainalo","Μαίναλο","m",3,22.2833,37.6],["Ainos","Αίνος","m",3,20.65,38.1333],["Voras (Kaimaktsalan)","Βόρας (Καϊμακτσαλάν)","m",3,21.8,40.9667],["Falakro","Φαλακρό","m",3,24.05,41.2833],["Oiti","Οίτη","m",3,22.3,38.8167],["Panachaiko","Παναχαϊκό","m",3,21.85,38.1833],["Attica","Αττική","r",1,23.7,38.05],["Central Macedonia","Κεντρική Μακεδονία","r",1,23,40.75],["Thessaly","Θεσσαλία","r",1,22.2,39.5],["Crete","Κρήτη","r",1,24.9,35.2],["Western Greece","Δυτική Ελλάδα","r",2,21.5,38.5],["Central Greece","Στερεά Ελλάδα","r",2,22.8,38.7],["Peloponnese","Πελοπόννησος","r",1,22.3,37.4],["East Macedonia and Thrace","Ανατολική Μακεδονία και Θράκη","r",1,25,41.1],["Epirus","Ήπειρος","r",1,20.8,39.5],["West Macedonia","Δυτική Μακεδονία","r",2,21.5,40.4],["South Aegean","Νότιο Αιγαίο","r",2,25.5,36.9],["North Aegean","Βόρειο Αιγαίο","r",2,26.2,38.9],["Ionian Islands","Ιόνια Νησιά","r",1,20.5,38.5]];
+
+  const GCAT = { i: "island", c: "city", m: "mountain", r: "region" };
+  const gpKey = p => p[2] + "|" + p[0];
+  const gpLabel = (p, l) => (l === "el" ? p[1] : p[0]);
+  const GP_BY_KEY = {};
+  for (const p of GREECE_PLACES) GP_BY_KEY[gpKey(p)] = p;
 
   // ================= Research strings =================
   const RSTR = {
@@ -1042,6 +1102,7 @@
     },
     async saveQuiz(q) {
       const row = { code: q.code, name: q.name, config: {
+        type: q.type || "world",
         lang: q.lang, feedback: q.feedback, zoom: q.zoom, demographics: q.demographics,
         custom: q.custom, consent: q.consent, done: q.done, countries: q.countries } };
       const { error } = await sb.from("quizzes").upsert(row);
@@ -1248,6 +1309,11 @@
     });
 
   sea.on("click", ev => { if (study && !study.locked && !multiTouchGuard()) recordAnswer(ev, null); });
+  // in Greece mode the whole map is a tap surface
+  svg.on("click.greece", ev => {
+    if (!study || !study.greece || study.locked || multiTouchGuard()) return;
+    recordAnswer(ev, null);
+  });
 
   d3.select("#zoom-in").on("click", () => svg.transition().duration(250).call(zoom.scaleBy, 1.7));
   d3.select("#zoom-out").on("click", () => svg.transition().duration(250).call(zoom.scaleBy, 1 / 1.7));
@@ -1356,7 +1422,16 @@
     show("instr-screen");
   }
 
-  function startStudy(quiz, demo, custom) {
+  async function startStudy(quiz, demo, custom) {
+    if (quiz.type === "greece") {
+      document.getElementById("instr-body").textContent = rt("loadingGreece") || "…";
+      const ok = await loadGreece();
+      if (!ok) { toast("Could not load the map of Greece", "bad"); return; }
+      drawGreeceMap();
+      setMapMode("greece");
+    } else {
+      setMapMode("world");
+    }
     const sid = "s" + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
     Store.addSession({
       id: sid, code: quiz.code, demo, custom,
@@ -1365,7 +1440,10 @@
     });
     study = {
       quiz, sid, i: 0, locked: false, qStart: 0, taps: [],
-      items: quiz.countries.map(n => byName[n]).filter(Boolean)
+      greece: quiz.type === "greece",
+      items: quiz.type === "greece"
+        ? quiz.countries.map(k => GP_BY_KEY[k]).filter(Boolean)
+        : quiz.countries.map(n => byName[n]).filter(Boolean)
     };
     show(null);
     document.getElementById("header").classList.add("active");
@@ -1383,8 +1461,10 @@
 
   function showItem() {
     gDots.selectAll("*").remove();
+    gTargets.selectAll("*").remove();
     const target = study.items[study.i];
-    document.getElementById("target-name").textContent = displayName(target);
+    document.getElementById("target-name").textContent =
+      study.greece ? gpLabel(target, lang) : displayName(target);
     document.getElementById("item-count").textContent =
       rt("item") + " " + (study.i + 1) + " / " + study.items.length;
     study.locked = false;
@@ -1427,6 +1507,7 @@
     const ms = Math.round(performance.now() - study.qStart);
     const target = study.items[study.i];
     const [gx, gy] = d3.pointer(ev, g.node());
+    if (study.greece) return recordGreeceAnswer(gx, gy, ms, target);
     const ll = projection.invert([gx, gy]);
     const k = d3.zoomTransform(svg.node()).k;
     const lon = ll && isFinite(ll[0]) ? +ll[0].toFixed(4) : null;
@@ -1468,6 +1549,37 @@
     }
   }
 
+  function recordGreeceAnswer(gx, gy, ms, target) {
+    const ll = gProjection.invert([gx, gy]);
+    const k = d3.zoomTransform(svg.node()).k;
+    const lon = ll && isFinite(ll[0]) ? +ll[0].toFixed(4) : null;
+    const lat = ll && isFinite(ll[1]) ? +ll[1].toFixed(4) : null;
+    const err = (lon === null) ? null : placeErrorKm(target, lon, lat);
+    Store.addResponse({
+      sid: study.sid, code: study.quiz.code, i: study.i,
+      asked: gpKey(target),
+      clicked: err === null ? "(none)" : String(err),   // error in km, kept as text
+      correct: err === 0,                                // true only when inside the target's shape
+      ms, lon, lat, sea: false, k: +k.toFixed(2), t: Date.now()
+    });
+    if (lon !== null) study.taps.push({ lon, lat, correct: err === 0, err });
+    drawTapDot(gx, gy);
+    if (study.quiz.feedback) {
+      const tp = gProjection([target[4], target[5]]);
+      if (tp) {
+        gTargets.append("line").attr("x1", gx).attr("y1", gy).attr("x2", tp[0]).attr("y2", tp[1])
+          .attr("stroke", "#A50021").attr("stroke-width", 1.5).attr("stroke-dasharray", "4 3");
+        gTargets.append("rect").attr("x", tp[0] - 5).attr("y", tp[1] - 5).attr("width", 10).attr("height", 10)
+          .attr("fill", "#FDB94E").attr("stroke", "#002147").attr("stroke-width", 1.5);
+      }
+      toast(gpLabel(target, lang) + " — " + err + " km", err <= 25 ? "good" : "bad");
+      setTimeout(nextItem, 2200);
+    } else {
+      toast(rt("recorded"), "good");
+      setTimeout(nextItem, 350);
+    }
+  }
+
   function nextItem() {
     study.i++;
     if (study.i >= study.items.length) endStudy();
@@ -1479,15 +1591,21 @@
     setTimeout(updateSyncBadge, 800);
     const quiz = study.quiz;
     const taps = study.taps;
+    const wasGreece = study.greece;
     study = null;
     gDots.selectAll("*").remove();
+    gTargets.selectAll("*").remove();
+    setMapMode("world");
     document.getElementById("header").classList.remove("active");
     document.getElementById("done-title").textContent = rt("doneTitle");
     document.getElementById("done-body").textContent = quiz.done || rt("doneDefault");
     document.getElementById("done-home").textContent = rt("home");
     const mapBox = document.getElementById("done-map");
     const cap = document.getElementById("done-map-cap");
-    if (taps.length) {
+    if (taps.length && wasGreece) {
+      greeceMiniMap(mapBox, taps);
+      cap.textContent = rt("yourTaps");
+    } else if (taps.length) {
       miniMap(mapBox, () => "#ffffff",
         taps.map(t => ({ lon: t.lon, lat: t.lat, color: t.correct ? "#16a34a" : "#dc2626" })));
       cap.textContent = rt("yourTaps");
@@ -1625,8 +1743,24 @@
     }
   }
 
+  function builderType() { return document.getElementById("q-type").value; }
+  function applyBuilderType() {
+    const gr = builderType() === "greece";
+    document.getElementById("tier-sel").style.display = gr ? "none" : "";
+    document.getElementById("gtier-sel").style.display = gr ? "" : "none";
+    document.querySelector('[data-ui="itemsLabel"]').textContent = u(gr ? "itemsLabelGr" : "itemsLabel");
+    document.getElementById("c-search").placeholder = u(gr ? "addOnePhGr" : "addOnePh");
+    fillDatalist();
+    renderCountryList();
+  }
+  document.getElementById("q-type").addEventListener("change", () => {
+    builderCountries = [];
+    applyBuilderType();
+  });
+
   function openBuilder(q, asCopy) {
     editingCode = (q && !asCopy) ? q.code : null;
+    document.getElementById("q-type").value = (q && q.type) ? q.type : "world";
     document.getElementById("builder-title").textContent =
       !q ? u("newQuiz") : asCopy ? u("duplicateOf")(q.name) : u("editQuiz")(q.code);
     document.getElementById("q-name").value = q ? (asCopy ? q.name + " (copy)" : q.name) : "";
@@ -1643,7 +1777,7 @@
     document.getElementById("cq-rows").innerHTML = "";
     (q && q.custom ? q.custom : []).forEach(c => addCqRow(c.label, (c.choices || []).join(", ")));
     builderCountries = q ? q.countries.slice() : [];
-    renderCountryList();
+    applyBuilderType();
     switchAdminView(true);
   }
 
@@ -1677,12 +1811,29 @@
   });
 
   function fillDatalist() {
-    document.getElementById("dl-countries").innerHTML =
-      quizPool.map(f => "<option value=\"" + (NAMES[f.properties.name] ? NAMES[f.properties.name][0] : f.properties.name) + "\">").join("");
+    const dl = document.getElementById("dl-countries");
+    if (builderType() === "greece") {
+      dl.innerHTML = GREECE_PLACES.map(p =>
+        "<option value=\"" + p[0] + " — " + p[1] + " (" + u("cat" + GCAT[p[2]].charAt(0).toUpperCase() + GCAT[p[2]].slice(1)) + ")\">").join("");
+    } else {
+      dl.innerHTML = quizPool.map(f =>
+        "<option value=\"" + (NAMES[f.properties.name] ? NAMES[f.properties.name][0] : f.properties.name) + "\">").join("");
+    }
   }
-  const displayOf = n => NAMES[n] ? NAMES[n][0] : n;
+  // label for an item key, in either quiz type
+  const displayOf = n => {
+    if (GP_BY_KEY[n]) return gpLabel(GP_BY_KEY[n], uiLang) + " (" + u("cat" + GCAT[GP_BY_KEY[n][2]].charAt(0).toUpperCase() + GCAT[GP_BY_KEY[n][2]].slice(1)) + ")";
+    return NAMES[n] ? NAMES[n][0] : n;
+  };
   function findByDisplay(text) {
     const t = text.trim().toLowerCase();
+    if (builderType() === "greece") {
+      const head = t.split("—")[0].trim();
+      const p = GREECE_PLACES.find(x =>
+        x[0].toLowerCase() === head || x[1].toLowerCase() === head ||
+        x[0].toLowerCase() === t || x[1].toLowerCase() === t);
+      return p ? { __gp: p } : null;
+    }
     return quizPool.find(f => {
       const n = f.properties.name;
       return n.toLowerCase() === t ||
@@ -1711,7 +1862,21 @@
     });
   }
 
+  document.getElementById("gtier-sel").parentElement
+    .querySelector("#tier-add").addEventListener("click", () => {
+    if (builderType() !== "greece") return;
+    const v = document.getElementById("gtier-sel").value;
+    let sel;
+    if (v === "all") sel = GREECE_PLACES.slice();
+    else if (v.startsWith("t")) sel = GREECE_PLACES.filter(p => p[3] === +v.slice(1));
+    else sel = GREECE_PLACES.filter(p => GCAT[p[2]] === v);
+    sel.sort((a, b) => gpLabel(a, uiLang).localeCompare(gpLabel(b, uiLang)));
+    for (const p of sel) if (!builderCountries.includes(gpKey(p))) builderCountries.push(gpKey(p));
+    renderCountryList();
+  });
+
   document.getElementById("tier-add").addEventListener("click", () => {
+    if (builderType() === "greece") return;
     const v = document.getElementById("tier-sel").value;
     const inEasy = new Set(TIERS.easy), inMod = new Set(TIERS.moderate);
     let names;
@@ -1724,9 +1889,11 @@
     renderCountryList();
   });
   document.getElementById("c-add").addEventListener("click", () => {
+    const gr = builderType() === "greece";
     const f = findByDisplay(document.getElementById("c-search").value);
-    if (!f) { toast(u("notRecognized"), "bad"); return; }
-    if (!builderCountries.includes(f.properties.name)) builderCountries.push(f.properties.name);
+    if (!f) { toast(u(gr ? "notRecognizedGr" : "notRecognized"), "bad"); return; }
+    const key = gr ? gpKey(f.__gp) : f.properties.name;
+    if (!builderCountries.includes(key)) builderCountries.push(key);
     document.getElementById("c-search").value = "";
     renderCountryList();
   });
@@ -1747,7 +1914,9 @@
   document.getElementById("q-save").addEventListener("click", async () => {
     const name = document.getElementById("q-name").value.trim();
     if (!name) { toast(u("nameNeeded"), "bad"); return; }
-    if (!builderCountries.length) { toast(u("itemsNeeded"), "bad"); return; }
+    if (!builderCountries.length) {
+      toast(u(builderType() === "greece" ? "itemsNeededGr" : "itemsNeeded"), "bad"); return;
+    }
     const custom = [];
     document.querySelectorAll("#cq-rows .cq-row").forEach(row => {
       const label = row.querySelector(".cq-label").value.trim();
@@ -1758,6 +1927,7 @@
     const quiz = {
       code: editingCode || genCode(),
       name,
+      type: builderType(),
       lang: document.getElementById("q-lang").value,
       feedback: document.getElementById("q-feedback").checked,
       zoom: document.getElementById("q-zoom").checked,
@@ -1780,6 +1950,112 @@
       toast(u("saveFailed"), "bad");
     }
   });
+
+  // ================= Greece edition: map, targets, scoring =================
+  const gGeo = { loaded: false, greece: null, others: [], islandOf: {}, regions: null };
+  let mapMode = "world";                       // "world" | "greece"
+  const gProjection = d3.geoMercator();
+  const gPath = d3.geoPath(gProjection);
+  const gLayer = g.append("g").attr("id", "greece-layer").style("display", "none");
+  const gTargets = g.append("g").attr("id", "greece-targets").attr("pointer-events", "none");
+
+  async function loadGreece() {
+    if (gGeo.loaded) return true;
+    try {
+      const world10 = await d3.json("https://cdn.jsdelivr.net/npm/world-atlas@2/countries-10m.json");
+      const feats = topojson.feature(world10, world10.objects.countries).features
+        .filter(f => f.properties.name !== "Antarctica");
+      gGeo.greece = feats.find(f => f.properties.name === "Greece");
+      gGeo.others = feats.filter(f => f.properties.name !== "Greece");
+      // match each island place to its own polygon, so a tap inside the island scores 0 km
+      const polys = gGeo.greece.geometry.coordinates;
+      const shapes = polys.map(p => {
+        const geom = { type: "Polygon", coordinates: p };
+        return { geom, c: d3.geoCentroid(geom) };
+      });
+      for (const p of GREECE_PLACES) {
+        if (p[2] !== "i") continue;
+        let best = null, bd = Infinity;
+        for (const s of shapes) {
+          const d = d3.geoDistance([p[4], p[5]], s.c) * 6371;
+          if (d < bd) { bd = d; best = s; }
+        }
+        if (best && bd < 30) gGeo.islandOf[gpKey(p)] = best.geom;
+      }
+      // optional: real region boundaries, if the researcher has added the file
+      try {
+        const rg = await d3.json("greece_regions.geojson");
+        if (rg && rg.features && rg.features.length) gGeo.regions = rg.features;
+      } catch (e) { gGeo.regions = null; }
+      gGeo.loaded = true;
+      return true;
+    } catch (e) { return false; }
+  }
+
+  function layoutGreece() {
+    const wrap = document.getElementById("map-wrap");
+    const w = wrap.clientWidth, h = wrap.clientHeight;
+    if (!gGeo.loaded) return;
+    gProjection.fitExtent([[12, 12], [w - 12, h - 12]], gGeo.greece);
+    gLayer.selectAll("path").attr("d", gPath);
+    gTargets.selectAll("*").remove();
+  }
+
+  function drawGreeceMap() {
+    gLayer.selectAll("*").remove();
+    gLayer.append("g").selectAll("path").data(gGeo.others).join("path")
+      .attr("class", "gr-other").attr("fill", "#EFEBE2").attr("stroke", "#C9C2B8").attr("stroke-width", 0.6);
+    if (gGeo.regions) {
+      gLayer.append("g").selectAll("path").data(gGeo.regions).join("path")
+        .attr("class", "gr-region").attr("fill", "#ffffff").attr("stroke", "#C9C2B8").attr("stroke-width", 0.7);
+    }
+    gLayer.append("path").datum(gGeo.greece)
+      .attr("fill", gGeo.regions ? "none" : "#ffffff").attr("stroke", "#002147").attr("stroke-width", 1);
+    layoutGreece();
+  }
+
+  window.addEventListener("resize", () => { if (mapMode === "greece") layoutGreece(); });
+
+  function setMapMode(mode) {
+    mapMode = mode;
+    const world = mode === "world";
+    gCountries.style("display", world ? null : "none");
+    gTerr.style("display", world ? null : "none");
+    gLakes.style("display", world ? null : "none");
+    gMarkers.style("display", world ? null : "none");
+    frameBorder.style("display", world ? null : "none");
+    gLayer.style("display", world ? "none" : null);
+    if (!world) layoutGreece();
+  }
+
+  // distance in km from a tap to a target place (0 when inside the target's own shape)
+  function placeErrorKm(place, lon, lat) {
+    const key = gpKey(place);
+    const shape = place[2] === "i" ? gGeo.islandOf[key]
+      : place[2] === "r" ? regionShapeOf(place) : null;
+    if (shape) {
+      if (d3.geoContains(shape, [lon, lat])) return 0;
+      let best = Infinity;
+      const polys = shape.type === "Polygon" ? [shape.coordinates] : shape.coordinates;
+      for (const poly of polys) for (const ring of poly) for (const pt of ring) {
+        const d = d3.geoDistance([lon, lat], pt);
+        if (d < best) best = d;
+      }
+      return Math.round(best * 6371);
+    }
+    return Math.round(d3.geoDistance([lon, lat], [place[4], place[5]]) * 6371);
+  }
+
+  function regionShapeOf(place) {
+    if (!gGeo.regions) return null;
+    const want = [place[0], place[1]].map(s => s.toLowerCase());
+    const f = gGeo.regions.find(r => {
+      const props = r.properties || {};
+      return Object.values(props).some(v =>
+        typeof v === "string" && want.includes(v.trim().toLowerCase()));
+    });
+    return f ? f.geometry : null;
+  }
 
   // ================= Diagnostics =================
   document.getElementById("diag-btn").addEventListener("click", () => { show("diag-screen"); runDiagnostics(); });
@@ -1899,6 +2175,29 @@
     container.innerHTML = out + "</svg>";
   }
 
+  // mini map of Greece: participant taps (blue) and optionally true locations (gold)
+  function greeceMiniMap(container, taps, targets) {
+    if (!gGeo.loaded) { container.innerHTML = ""; return; }
+    const w = 640, h = 460;
+    const proj = d3.geoMercator().fitExtent([[8, 8], [w - 8, h - 8]], gGeo.greece);
+    proj.clipExtent([[0, 0], [w, h]]);
+    const p = d3.geoPath(proj);
+    let out = "<svg viewBox='0 0 " + w + " " + h + "' style='width:100%;height:auto;background:var(--sea);border:1px solid var(--line);border-radius:8px'>";
+    for (const f of gGeo.others) { const d = p(f); if (d) out += "<path d='" + d + "' fill='#EFEBE2' stroke='#C9C2B8' stroke-width='0.5'></path>"; }
+    out += "<path d='" + p(gGeo.greece) + "' fill='#ffffff' stroke='#002147' stroke-width='0.9'></path>";
+    if (targets) for (const t of targets) {
+      const xy = proj([t.lon, t.lat]); if (!xy) continue;
+      out += "<rect x='" + (xy[0] - 3.5).toFixed(1) + "' y='" + (xy[1] - 3.5).toFixed(1) +
+        "' width='7' height='7' fill='#FDB94E' stroke='#002147' stroke-width='1'></rect>";
+    }
+    for (const t of taps) {
+      const xy = proj([t.lon, t.lat]); if (!xy) continue;
+      out += "<circle cx='" + xy[0].toFixed(1) + "' cy='" + xy[1].toFixed(1) +
+        "' r='3' fill='#1e3a8a' fill-opacity='0.7'></circle>";
+    }
+    container.innerHTML = out + "</svg>";
+  }
+
   async function openReport(code) {
     show("report-screen");
     const body = document.getElementById("report-body");
@@ -1916,6 +2215,7 @@
       body.innerHTML = "<h2>" + quiz.name + "</h2><p style='color:var(--muted)'>" + u("repNoResponses") + "</p>";
       return;
     }
+    if (quiz.type === "greece") return greeceReport(quiz, code, sessions, responses, body);
     const med = arr => {
       if (!arr.length) return null;
       const a = arr.slice().sort((x, y) => x - y);
@@ -2059,6 +2359,100 @@
     miniMap(document.getElementById("rmap-taps"), () => "#ffffff", dots);
   }
 
+  // ---------- report for Greece-edition quizzes (distance is the measure) ----------
+  async function greeceReport(quiz, code, sessions, responses, body) {
+    await loadGreece();
+    const med = a => { if (!a.length) return null; const s = a.slice().sort((x, y) => x - y);
+      const m = Math.floor(s.length / 2); return s.length % 2 ? s[m] : Math.round((s[m - 1] + s[m]) / 2); };
+    const per = {};
+    for (const r of responses) {
+      const place = GP_BY_KEY[r.asked];
+      if (!place) continue;
+      const err = (r.lon != null) ? placeErrorKm(place, r.lon, r.lat) : null;
+      if (!per[r.asked]) per[r.asked] = { place, n: 0, errs: [], rts: [] };
+      per[r.asked].n++;
+      if (err != null) per[r.asked].errs.push(err);
+      if (r.rt_ms != null) per[r.asked].rts.push(r.rt_ms);
+    }
+    const order = quiz.countries.filter(k => per[k]).concat(Object.keys(per).filter(k => !quiz.countries.includes(k)));
+    const rows = order.map(k => per[k]);
+    const allErrs = rows.flatMap(r => r.errs);
+    const allRts = responses.map(r => r.rt_ms).filter(v => v != null);
+    const compl = sessions.filter(s => s.complete);
+    const byErr = rows.filter(r => r.errs.length).slice().sort((a, b) => med(a.errs) - med(b.errs));
+
+    const findings = [];
+    findings.push(u("fParticipants")(sessions.length, compl.length, "—", responses.length)
+      .replace(/(Overall accuracy|Συνολική ακρίβεια): — /, ""));
+    if (allErrs.length) findings.push(u("fMedErr")(med(allErrs)));
+    if (allRts.length) findings.push(u("fRt")((med(allRts) / 1000).toFixed(1), null));
+    if (byErr.length) findings.push(u("fClosest")(byErr.slice(0, 3)
+      .map(r => gpLabel(r.place, uiLang) + " (" + med(r.errs) + " km)").join(", ")));
+    if (byErr.length) findings.push(u("fFurthest")(byErr.slice(-3).reverse()
+      .map(r => gpLabel(r.place, uiLang) + " (" + med(r.errs) + " km)").join(", ")));
+    if (!gGeo.regions && rows.some(r => r.place[2] === "r"))
+      findings.push("⚠ " + u("regionsNeedFile"));
+
+    let html = "<h2 style='margin-bottom:2px'>" + quiz.name + "</h2>" +
+      "<p style='color:var(--muted);font-size:13px'>" + u("repCode") + " " + code + " · " + u("typeGreece") +
+      " · " + (quiz.lang === "el" ? "Ελληνικά" : "English") + " · " + quiz.countries.length + " " + u("repItems") +
+      " · " + u("repGenerated") + " " + new Date().toLocaleString() + "</p>";
+    html += "<div class='stat-cards'>" +
+      "<div class='stat'><b>" + sessions.length + "</b>" + u("sParticipants") + "</div>" +
+      "<div class='stat'><b>" + (allErrs.length ? med(allErrs) + " km" : "—") + "</b>" + u("hMedianErr") + "</div>" +
+      "<div class='stat'><b>" + (allRts.length ? (med(allRts) / 1000).toFixed(1) + "s" : "—") + "</b>" + u("sMedianRt") + "</div>" +
+      "<div class='stat'><b>" + responses.length + "</b>" + u("thResponses") + "</div></div>";
+    html += "<h3 style='font-size:16px'>" + u("hFindings") + "</h3><ul class='findings'>" +
+      findings.map(f => "<li>" + f + "</li>").join("") + "</ul>";
+    html += "<div class='rep-maps'><div><h3>" + u("hTapMapGr") + "</h3><div id='gmap-taps'></div>" +
+      "<div class='cap'>" + u("capTapsGr") + "</div></div></div>";
+    html += "<h3 style='font-size:16px'>" + u("hErrByItem") + "</h3>" +
+      "<table class='rep'><thead><tr><th>" + u("thNum") + "</th><th>" + u("thPlace") + "</th><th>" + u("thCat") +
+      "</th><th>" + u("thAsked") + "</th><th>" + u("thMedErr") + "</th><th>" + u("thMedRt") + "</th></tr></thead><tbody>" +
+      rows.map((r, i) => "<tr><td>" + (i + 1) + "</td><td>" + gpLabel(r.place, uiLang) + "</td><td>" +
+        u("cat" + GCAT[r.place[2]].charAt(0).toUpperCase() + GCAT[r.place[2]].slice(1)) + "</td><td>" + r.n +
+        "</td><td>" + (r.errs.length ? med(r.errs) + " km" : "—") +
+        "</td><td>" + (r.rts.length ? (med(r.rts) / 1000).toFixed(1) + "s" : "—") + "</td></tr>").join("") +
+      "</tbody></table>";
+    body.innerHTML = html;
+    greeceMiniMap(document.getElementById("gmap-taps"),
+      responses.filter(r => r.lon != null).map(r => ({ lon: r.lon, lat: r.lat })),
+      rows.map(r => ({ lon: r.place[4], lat: r.place[5] })));
+  }
+
+  async function exportGreeceCSV(quiz, code, sessions, responses) {
+    await loadGreece();
+    const customLabels = (quiz.custom || []).map(c => c.label);
+    const head = ["session_id", "quiz_code", "quiz_name", "session_start", "session_end", "complete",
+      "age", "gender", "education", "location", ...customLabels,
+      "screen_w", "screen_h", "user_agent",
+      "item", "target_key", "target_en", "target_el", "target_type",
+      "target_lon", "target_lat", "click_lon", "click_lat", "zoom_level",
+      "error_km", "inside_target", "rt_ms"];
+    const rows = [head.join(",")];
+    for (const r of responses) {
+      const s = sessions.find(x => x.id === r.session_id) || {};
+      const demo = s.demo || {}, cust = s.custom || {};
+      const p = GP_BY_KEY[r.asked];
+      const err = (p && r.lon != null) ? placeErrorKm(p, r.lon, r.lat) : "";
+      rows.push([
+        r.session_id, code, quiz.name, s.started_at || "", s.ended_at || "", s.complete ? 1 : 0,
+        demo.age || "", demo.gender || "", demo.education || "", demo.location || "",
+        ...customLabels.map(l => cust[l] || ""),
+        s.sw || "", s.sh || "", s.ua || "",
+        r.item, r.asked, p ? p[0] : "", p ? p[1] : "", p ? GCAT[p[2]] : "",
+        p ? p[4] : "", p ? p[5] : "", r.lon ?? "", r.lat ?? "", r.zoom_level ?? "",
+        err, err === 0 ? 1 : 0, r.rt_ms
+      ].map(csvCell).join(","));
+    }
+    const blob = new Blob(["﻿" + rows.join("\n")], { type: "text/csv;charset=utf-8" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "borderline_greece_" + code + "_responses.csv";
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }
+
   // ================= Error metrics =================
   const _borderCache = {};
   function borderVertices(name) {
@@ -2097,6 +2491,7 @@
       toast(u("exportFailed"), "bad");
       return;
     }
+    if (quiz.type === "greece") return exportGreeceCSV(quiz, code, sessions, responses);
     const customLabels = (quiz.custom || []).map(c => c.label);
     const head = ["session_id", "quiz_code", "quiz_name", "session_start", "session_end", "complete",
       "age", "gender", "education", "location", ...customLabels,
