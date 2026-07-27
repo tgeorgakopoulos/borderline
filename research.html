@@ -163,6 +163,22 @@
   table.rep th, table.rep td { text-align: left; padding: 5px 8px; border-bottom: 1px solid #ECE7DC; }
   table.rep th { color: var(--muted); font-size: 12px; }
   .rep-maps h3, #report-body h3 { font-family: var(--serif); font-weight: 700; }
+  #ui-lang-toggle {
+    position: absolute; top: 14px; right: 14px; z-index: 20; display: none;
+    border: 1px solid var(--line); border-radius: 10px; overflow: hidden;
+    background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+  }
+  #ui-lang-toggle.on { display: flex; }
+  .uilang-btn {
+    border: none; background: #fff; color: var(--muted); padding: 7px 13px;
+    font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit;
+  }
+  .uilang-btn.active { background: var(--ink); color: var(--paper); }
+  @media (max-width: 620px) {
+    #ui-lang-toggle { top: 10px; right: 10px; }
+    .uilang-btn { padding: 6px 11px; font-size: 12px; }
+    .screen .panel { padding-top: 66px; }
+  }
 </style>
 </head>
 <body>
@@ -183,96 +199,102 @@
   </div>
   <div id="toast"></div>
 
+  <div id="ui-lang-toggle">
+    <button class="uilang-btn" data-uilang="en">EN</button>
+    <button class="uilang-btn" data-uilang="el">ΕΛ</button>
+  </div>
+
   <div class="screen active" id="home-screen">
     <div class="panel center">
       <div id="wordmark">Borderline</div>
       <div class="brand-rule"></div>
-      <p class="wm-sub">Research platform</p>
-      <div id="loading">Loading world map…</div>
+      <p class="wm-sub" data-ui="platform">Research platform</p>
+      <div id="loading" data-ui="loadingMap">Loading world map…</div>
       <div id="home-actions" style="display:none">
         <div class="field" style="max-width:320px;margin:0 auto 14px">
-          <label id="lbl-code">Study code</label>
+          <label id="lbl-code" data-ui="studyCode">Study code</label>
           <input type="text" id="code-input" autocomplete="off" style="text-transform:uppercase;text-align:center;font-size:18px;letter-spacing:2px">
         </div>
         <div class="btn-row">
-          <button class="primary-btn" id="join-btn">Join study</button>
-          <button class="ghost-btn" id="admin-btn">Researcher panel</button>
-          <button class="ghost-btn" id="diag-btn">Diagnostics</button>
+          <button class="primary-btn" id="join-btn" data-ui="joinStudy">Join study</button>
+          <button class="ghost-btn" id="admin-btn" data-ui="researcherPanel">Researcher panel</button>
+          <button class="ghost-btn" id="diag-btn" data-ui="diagnostics">Diagnostics</button>
         </div>
-        <p class="note">Responses upload securely to the study database.<br>If the connection drops, they are kept on this device and synced automatically.</p>
+        <p class="note" data-ui="homeNote">Responses upload securely to the study database.<br>If the connection drops, they are kept on this device and synced automatically.</p>
       </div>
     </div>
   </div>
 
   <div class="screen" id="login-screen">
     <div class="panel center" style="max-width:420px">
-      <h1>Researcher login</h1>
-      <div class="field"><label>Email</label><input type="email" id="login-email" autocomplete="username"></div>
-      <div class="field"><label>Password</label><input type="password" id="login-pass" autocomplete="current-password"></div>
+      <h1 data-ui="login">Researcher login</h1>
+      <div class="field"><label data-ui="email">Email</label><input type="email" id="login-email" autocomplete="username"></div>
+      <div class="field"><label data-ui="password">Password</label><input type="password" id="login-pass" autocomplete="current-password"></div>
       <div class="btn-row">
-        <button class="primary-btn" id="login-btn">Log in</button>
-        <button class="ghost-btn" id="login-back">Back</button>
+        <button class="primary-btn" id="login-btn" data-ui="logIn">Log in</button>
+        <button class="ghost-btn" id="login-back" data-ui="back">Back</button>
       </div>
     </div>
   </div>
 
   <div class="screen" id="admin-screen">
     <div class="panel admin-wide">
-      <h1>Researcher panel <span class="badge" id="sync-badge"></span></h1>
-      <p class="sub">Create quizzes, share study codes, export data.</p>
+      <h1><span data-ui="researcherPanel">Researcher panel</span> <span class="badge" id="sync-badge"></span></h1>
+      <p class="sub" data-ui="panelSub">Create quizzes, share study codes, export data.</p>
       <div id="admin-list-view">
-        <button class="primary-btn" id="new-quiz-btn">New quiz</button>
-        <button class="ghost-btn" id="admin-home-btn" style="margin-left:8px">Back</button>
-        <button class="ghost-btn" id="sync-now-btn" style="margin-left:8px">Sync now</button>
-        <button class="ghost-btn" id="logout-btn" style="margin-left:8px">Log out</button>
-        <h2>Your quizzes</h2>
+        <button class="primary-btn" id="new-quiz-btn" data-ui="newQuiz">New quiz</button>
+        <button class="ghost-btn" id="admin-home-btn" style="margin-left:8px" data-ui="back">Back</button>
+        <button class="ghost-btn" id="sync-now-btn" style="margin-left:8px" data-ui="syncNow">Sync now</button>
+        <button class="ghost-btn" id="logout-btn" style="margin-left:8px" data-ui="logOut">Log out</button>
+        <h2 data-ui="yourQuizzes">Your quizzes</h2>
         <table class="qlist"><thead><tr>
-          <th>Name</th><th>Code</th><th>Lang</th><th>Items</th><th>Sessions</th><th></th>
+          <th data-ui="thName">Name</th><th data-ui="thCode">Code</th><th data-ui="thLang">Lang</th>
+          <th data-ui="thItems">Items</th><th data-ui="thSessions">Sessions</th><th></th>
         </tr></thead><tbody id="quiz-rows"></tbody></table>
-        <p class="note" id="no-quizzes" style="display:none">No quizzes yet — create one.</p>
+        <p class="note" id="no-quizzes" style="display:none" data-ui="noQuizzes">No quizzes yet — create one.</p>
       </div>
 
       <div id="admin-edit-view" style="display:none">
         <h2 id="builder-title">New quiz</h2>
-        <div class="field"><label>Quiz name</label><input type="text" id="q-name" placeholder="e.g., Pilot study A"></div>
-        <div class="field"><label>Participant language</label>
+        <div class="field"><label data-ui="quizName">Quiz name</label><input type="text" id="q-name" data-ui-ph="quizNamePh" placeholder="e.g., Pilot study A"></div>
+        <div class="field"><label data-ui="participantLang">Participant language</label>
           <select id="q-lang"><option value="en">English</option><option value="el">Ελληνικά</option></select></div>
-        <div class="field"><label>Options</label>
+        <div class="field"><label data-ui="options">Options</label>
           <div class="chk-row">
-            <label><input type="checkbox" id="q-feedback"> Show right/wrong feedback</label>
-            <label><input type="checkbox" id="q-zoom" checked> Allow zoom & pan</label>
+            <label><input type="checkbox" id="q-feedback"> <span data-ui="optFeedback">Show right/wrong feedback</span></label>
+            <label><input type="checkbox" id="q-zoom" checked> <span data-ui="optZoom">Allow zoom &amp; pan</span></label>
           </div></div>
-        <div class="field"><label>Demographics collected</label>
+        <div class="field"><label data-ui="demographics">Demographics collected</label>
           <div class="chk-row">
-            <label><input type="checkbox" id="d-age" checked> Age</label>
-            <label><input type="checkbox" id="d-gender" checked> Gender</label>
-            <label><input type="checkbox" id="d-education" checked> Education</label>
-            <label><input type="checkbox" id="d-location" checked> Location</label>
+            <label><input type="checkbox" id="d-age" checked> <span data-ui="dAge">Age</span></label>
+            <label><input type="checkbox" id="d-gender" checked> <span data-ui="dGender">Gender</span></label>
+            <label><input type="checkbox" id="d-education" checked> <span data-ui="dEducation">Education</span></label>
+            <label><input type="checkbox" id="d-location" checked> <span data-ui="dLocation">Location</span></label>
           </div></div>
-        <div class="field"><label>Custom questions <span style="font-weight:400;color:var(--muted)">(leave choices empty for free text)</span></label>
+        <div class="field"><label><span data-ui="customQuestions">Custom questions</span> <span style="font-weight:400;color:var(--muted)" data-ui="customHint">(leave choices empty for free text)</span></label>
           <div id="cq-rows"></div>
-          <button class="mini-btn" id="cq-add">+ Add question</button></div>
-        <div class="field"><label>Consent text (shown before the quiz)</label><textarea id="q-consent"></textarea></div>
-        <div class="field"><label>Completion message (optional)</label><textarea id="q-done" style="min-height:50px"></textarea></div>
-        <div class="field"><label>Countries — asked in this exact order (<span id="c-count">0</span>)</label>
+          <button class="mini-btn" id="cq-add" data-ui="addQuestion">+ Add question</button></div>
+        <div class="field"><label data-ui="consentLabel">Consent text (shown before the quiz)</label><textarea id="q-consent"></textarea></div>
+        <div class="field"><label data-ui="doneLabel">Completion message (optional)</label><textarea id="q-done" style="min-height:50px"></textarea></div>
+        <div class="field"><label><span data-ui="itemsLabel">Countries — asked in this exact order</span> (<span id="c-count">0</span>)</label>
           <div class="inline-add">
             <select id="tier-sel">
-              <option value="easy">Easy tier</option>
-              <option value="moderate">Moderate tier</option>
-              <option value="hard">Hard tier</option>
-              <option value="all">All 195</option>
+              <option value="easy" data-ui="tierEasy">Easy tier</option>
+              <option value="moderate" data-ui="tierMod">Moderate tier</option>
+              <option value="hard" data-ui="tierHard">Hard tier</option>
+              <option value="all" data-ui="tierAll">All 195</option>
             </select>
-            <button class="mini-btn" id="tier-add">Add tier</button>
-            <input type="text" id="c-search" list="dl-countries" placeholder="Add one country…">
+            <button class="mini-btn" id="tier-add" data-ui="addTier">Add tier</button>
+            <input type="text" id="c-search" list="dl-countries" data-ui-ph="addOnePh" placeholder="Add one country…">
             <datalist id="dl-countries"></datalist>
-            <button class="mini-btn" id="c-add">Add</button>
-            <button class="mini-btn" id="c-shuffle">Shuffle order</button>
-            <button class="mini-btn" id="c-clear">Clear</button>
+            <button class="mini-btn" id="c-add" data-ui="add">Add</button>
+            <button class="mini-btn" id="c-shuffle" data-ui="shuffle">Shuffle order</button>
+            <button class="mini-btn" id="c-clear" data-ui="clear">Clear</button>
           </div>
           <ol id="c-list"></ol></div>
         <div class="btn-row" style="justify-content:flex-start">
-          <button class="primary-btn" id="q-save">Save quiz</button>
-          <button class="ghost-btn" id="q-cancel">Cancel</button>
+          <button class="primary-btn" id="q-save" data-ui="saveQuiz">Save quiz</button>
+          <button class="ghost-btn" id="q-cancel" data-ui="cancel">Cancel</button>
         </div>
       </div>
     </div>
@@ -280,13 +302,13 @@
 
   <div class="screen" id="diag-screen">
     <div class="panel">
-      <h1>Connection diagnostics</h1>
-      <p class="sub">Run this in the same browser where data seems stuck.</p>
+      <h1 data-ui="diagTitle">Connection diagnostics</h1>
+      <p class="sub" data-ui="diagSub">Run this in the same browser where data seems stuck.</p>
       <pre id="diag-out" style="white-space:pre-wrap;font-family:ui-monospace,Menlo,monospace;font-size:12.5px;line-height:1.6;background:#fff;border:1px solid var(--line);border-radius:10px;padding:14px;max-height:52vh;overflow:auto"></pre>
       <div class="btn-row" style="justify-content:flex-start;margin-top:14px">
-        <button class="primary-btn" id="diag-run">Run tests</button>
-        <button class="ghost-btn" id="diag-flush">Force upload pending</button>
-        <button class="ghost-btn" id="diag-back">Back</button>
+        <button class="primary-btn" id="diag-run" data-ui="runTests">Run tests</button>
+        <button class="ghost-btn" id="diag-flush" data-ui="forceUpload">Force upload pending</button>
+        <button class="ghost-btn" id="diag-back" data-ui="back">Back</button>
       </div>
     </div>
   </div>
@@ -294,8 +316,8 @@
   <div class="screen" id="report-screen">
     <div class="panel admin-wide">
       <div class="btn-row" style="justify-content:flex-start;margin-bottom:16px">
-        <button class="ghost-btn" id="report-back">Back</button>
-        <button class="ghost-btn" id="report-print">Print / PDF</button>
+        <button class="ghost-btn" id="report-back" data-ui="back">Back</button>
+        <button class="ghost-btn" id="report-print" data-ui="printPdf">Print / PDF</button>
       </div>
       <div id="report-body"></div>
     </div>
@@ -667,6 +689,196 @@
 
 
 
+  // ================= Researcher interface strings (separate from participant language) =================
+  const UI = {
+    en: {
+      platform: "Research platform", loadingMap: "Loading world map…",
+      studyCode: "Study code", joinStudy: "Join study", researcherPanel: "Researcher panel",
+      diagnostics: "Diagnostics",
+      homeNote: "Responses upload securely to the study database.<br>If the connection drops, they are kept on this device and synced automatically.",
+      login: "Researcher login", email: "Email", password: "Password", logIn: "Log in", back: "Back",
+      panelSub: "Create quizzes, share study codes, export data.",
+      newQuiz: "New quiz", syncNow: "Sync now", logOut: "Log out", yourQuizzes: "Your quizzes",
+      thName: "Name", thCode: "Code", thLang: "Lang", thItems: "Items", thSessions: "Sessions",
+      noQuizzes: "No quizzes yet — create one.",
+      quizName: "Quiz name", quizNamePh: "e.g., Pilot study A",
+      participantLang: "Participant language", options: "Options",
+      optFeedback: "Show right/wrong feedback", optZoom: "Allow zoom & pan",
+      demographics: "Demographics collected",
+      dAge: "Age", dGender: "Gender", dEducation: "Education", dLocation: "Location",
+      customQuestions: "Custom questions", customHint: "(leave choices empty for free text)",
+      addQuestion: "+ Add question", cqLabelPh: "Question, e.g., Native language",
+      cqChoicesPh: "Choices, comma-separated (optional)",
+      consentLabel: "Consent text (shown before the quiz)",
+      doneLabel: "Completion message (optional)",
+      itemsLabel: "Countries — asked in this exact order",
+      tierEasy: "Easy tier", tierMod: "Moderate tier", tierHard: "Hard tier", tierAll: "All 195",
+      addTier: "Add tier", addOnePh: "Add one country…", add: "Add", shuffle: "Shuffle order",
+      clear: "Clear", saveQuiz: "Save quiz", cancel: "Cancel",
+      editQuiz: c => "Edit quiz — " + c, duplicateOf: n => "Duplicate of " + n,
+      aCopyLink: "Copy link", aTestRun: "Test run", aDuplicate: "Duplicate", aResults: "Results", aCsv: "CSV",
+      tCopyLink: "Copy the participant link", tTestRun: "Take the quiz yourself",
+      tDuplicate: "Create a copy of this quiz", tResults: "Open the analysis report",
+      tCsv: "Download raw data as CSV", tDelete: "Delete this quiz and all its data",
+      confirmDelete: n => "Delete quiz \"" + n + "\" and all its data?",
+      linkCopied: "Link copied", participantLink: "Participant link:",
+      quizSaved: c => "Quiz saved — code " + c, saveFailed: "Save failed — check connection and login",
+      deleteFailed: "Delete failed", nameNeeded: "Give the quiz a name",
+      itemsNeeded: "Add at least one country", notRecognized: "Country not recognized",
+      dupNote: "Duplicate — a new code is assigned when you save",
+      upToDate: "Up to date", stillPending: n => n + " records still pending on this device",
+      loadFailed: "Could not load quizzes — check your connection and login",
+      exportFailed: "Export failed — check connection and login",
+      loading: "Loading…", loadingData: "Loading data…",
+      syncedAll: "all data synced", waitingUpload: n => n + " records waiting to upload",
+      pendingNote: n => n + " responses are stored on this device and will upload automatically.",
+      lastError: "Last error: ",
+      diagTitle: "Connection diagnostics", diagSub: "Run this in the same browser where data seems stuck.",
+      runTests: "Run tests", forceUpload: "Force upload pending", printPdf: "Print / PDF",
+      repNoResponses: "No responses recorded yet.",
+      repCode: "Code", repItems: "items", repFeedback: "feedback", repZoom: "zoom",
+      on: "on", off: "off", repGenerated: "generated",
+      sParticipants: "participants", sAccuracy: "accuracy", sMedianRt: "median RT",
+      sMedianMiss: "median miss distance",
+      hFindings: "Main findings", hAccMap: "Accuracy by country", hTapMap: "Every tap",
+      capAcc: "Green = always correct · red = never correct · white = not asked",
+      capTaps: "Green dot = correct tap · red dot = wrong tap",
+      hPerCountry: "Per-country results",
+      thNum: "#", thCountry: "Country", thAsked: "Asked", thCorrect: "Correct",
+      thMedRt: "Median RT", thMedMiss: "Median miss", thConfused: "Most confused with",
+      hByAge: "Results by age group", hByEdu: "Results by education level", hByGender: "Results by gender",
+      thGroup: "Group", thParticipants: "Participants", thResponses: "Responses",
+      smallGroups: "Groups with fewer than 5 participants — interpret with caution.",
+      noCountry: "(no country)",
+      fParticipants: (n, c, acc, r) => n + " participants (" + c + " completed). Overall accuracy: " + acc + " across " + r + " responses.",
+      fRt: (rt, dur) => "Median response time: " + rt + "s per item" + (dur ? "; median completion time: " + dur + " min." : "."),
+      fBest: l => "Best known: " + l + ".", fWorst: l => "Least known: " + l + ".",
+      fMiss: km => "Median miss distance (wrong answers, to nearest border of the target): " + km + " km.",
+      fConfusion: (a, b, n) => a + " was mistaken for " + b + " " + n + " times.",
+      fSeaMiss: n => n + " taps landed on no country (open sea, beyond the snap distance).",
+      fSeaSnap: n => n + " taps landed at sea and were assigned to the nearest coastline.",
+      enterCreds: "Enter email and password", loginFailed: "Login failed: ",
+      ageUnder18: "Under 18",
+      dgPageUrl: "Page URL:", dgOrigin: "Origin:", dgBrowser: "Browser:", dgOnline: "Online:",
+      dgFileWarn: "  ⚠ Opened as a local file. Browsers block database calls from file:// —\n    use the web address instead.",
+      dgStorage: "Local storage:", dgWorking: "working",
+      dgBlocked: "BLOCKED (private browsing?) — using memory fallback",
+      dgPending: "Pending queue:", dgRecords: "record(s)",
+      dgParked: "Parked:", dgParkedNote: "record(s) set aside after repeated failures",
+      dgFirstErr: "  first error: ", dgLastErr: "Last error:",
+      dgRead: "Testing database read…", dgWrite: "Testing database write permission…",
+      dgCols: "Testing responses table columns…",
+      dgDone: "Done. Copy this whole report if you need help interpreting it."
+    },
+    el: {
+      platform: "Ερευνητική πλατφόρμα", loadingMap: "Φόρτωση παγκόσμιου χάρτη…",
+      studyCode: "Κωδικός μελέτης", joinStudy: "Συμμετοχή", researcherPanel: "Πίνακας ερευνητή",
+      diagnostics: "Διαγνωστικά",
+      homeNote: "Οι απαντήσεις αποστέλλονται με ασφάλεια στη βάση δεδομένων.<br>Αν διακοπεί η σύνδεση, αποθηκεύονται στη συσκευή και συγχρονίζονται αυτόματα.",
+      login: "Είσοδος ερευνητή", email: "Email", password: "Κωδικός πρόσβασης", logIn: "Είσοδος", back: "Πίσω",
+      panelSub: "Δημιουργήστε κουίζ, μοιραστείτε κωδικούς μελέτης, εξάγετε δεδομένα.",
+      newQuiz: "Νέο κουίζ", syncNow: "Συγχρονισμός", logOut: "Αποσύνδεση", yourQuizzes: "Τα κουίζ σας",
+      thName: "Όνομα", thCode: "Κωδικός", thLang: "Γλώσσα", thItems: "Ερωτήματα", thSessions: "Συνεδρίες",
+      noQuizzes: "Δεν υπάρχουν κουίζ ακόμη — δημιουργήστε ένα.",
+      quizName: "Όνομα κουίζ", quizNamePh: "π.χ. Πιλοτική μελέτη Α",
+      participantLang: "Γλώσσα συμμετεχόντων", options: "Επιλογές",
+      optFeedback: "Εμφάνιση σωστού/λάθους", optZoom: "Να επιτρέπεται ζουμ και μετακίνηση",
+      demographics: "Δημογραφικά στοιχεία",
+      dAge: "Ηλικία", dGender: "Φύλο", dEducation: "Εκπαίδευση", dLocation: "Τοποθεσία",
+      customQuestions: "Προσαρμοσμένες ερωτήσεις", customHint: "(αφήστε κενές τις επιλογές για ελεύθερο κείμενο)",
+      addQuestion: "+ Προσθήκη ερώτησης", cqLabelPh: "Ερώτηση, π.χ. Μητρική γλώσσα",
+      cqChoicesPh: "Επιλογές, χωρισμένες με κόμμα (προαιρετικό)",
+      consentLabel: "Κείμενο συγκατάθεσης (εμφανίζεται πριν το κουίζ)",
+      doneLabel: "Μήνυμα ολοκλήρωσης (προαιρετικό)",
+      itemsLabel: "Χώρες — με αυτή ακριβώς τη σειρά",
+      tierEasy: "Εύκολη βαθμίδα", tierMod: "Μέτρια βαθμίδα", tierHard: "Δύσκολη βαθμίδα", tierAll: "Και οι 195",
+      addTier: "Προσθήκη βαθμίδας", addOnePh: "Προσθήκη χώρας…", add: "Προσθήκη",
+      shuffle: "Τυχαία σειρά", clear: "Καθαρισμός", saveQuiz: "Αποθήκευση", cancel: "Ακύρωση",
+      editQuiz: c => "Επεξεργασία κουίζ — " + c, duplicateOf: n => "Αντίγραφο του " + n,
+      aCopyLink: "Αντιγραφή", aTestRun: "Δοκιμή", aDuplicate: "Αντιγραφή κουίζ", aResults: "Αποτελέσματα", aCsv: "CSV",
+      tCopyLink: "Αντιγραφή συνδέσμου συμμετοχής", tTestRun: "Δοκιμάστε το κουίζ",
+      tDuplicate: "Δημιουργία αντιγράφου", tResults: "Άνοιγμα αναφοράς ανάλυσης",
+      tCsv: "Λήψη δεδομένων σε CSV", tDelete: "Διαγραφή κουίζ και όλων των δεδομένων",
+      confirmDelete: n => "Διαγραφή του κουίζ «" + n + "» και όλων των δεδομένων του;",
+      linkCopied: "Ο σύνδεσμος αντιγράφηκε", participantLink: "Σύνδεσμος συμμετοχής:",
+      quizSaved: c => "Το κουίζ αποθηκεύτηκε — κωδικός " + c,
+      saveFailed: "Η αποθήκευση απέτυχε — ελέγξτε σύνδεση και είσοδο",
+      deleteFailed: "Η διαγραφή απέτυχε", nameNeeded: "Δώστε όνομα στο κουίζ",
+      itemsNeeded: "Προσθέστε τουλάχιστον μία χώρα", notRecognized: "Η χώρα δεν αναγνωρίστηκε",
+      dupNote: "Αντίγραφο — νέος κωδικός θα δοθεί κατά την αποθήκευση",
+      upToDate: "Ενημερωμένο", stillPending: n => n + " εγγραφές εκκρεμούν σε αυτή τη συσκευή",
+      loadFailed: "Δεν ήταν δυνατή η φόρτωση — ελέγξτε σύνδεση και είσοδο",
+      exportFailed: "Η εξαγωγή απέτυχε — ελέγξτε σύνδεση και είσοδο",
+      loading: "Φόρτωση…", loadingData: "Φόρτωση δεδομένων…",
+      syncedAll: "όλα συγχρονισμένα", waitingUpload: n => n + " εγγραφές προς αποστολή",
+      pendingNote: n => n + " απαντήσεις είναι αποθηκευμένες στη συσκευή και θα σταλούν αυτόματα.",
+      lastError: "Τελευταίο σφάλμα: ",
+      diagTitle: "Διαγνωστικά σύνδεσης", diagSub: "Εκτελέστε το στο ίδιο πρόγραμμα περιήγησης όπου φαίνονται να κολλάνε τα δεδομένα.",
+      runTests: "Εκτέλεση ελέγχων", forceUpload: "Άμεση αποστολή εκκρεμών", printPdf: "Εκτύπωση / PDF",
+      repNoResponses: "Δεν έχουν καταγραφεί απαντήσεις ακόμη.",
+      repCode: "Κωδικός", repItems: "ερωτήματα", repFeedback: "ανάδραση", repZoom: "ζουμ",
+      on: "ναι", off: "όχι", repGenerated: "δημιουργήθηκε",
+      sParticipants: "συμμετέχοντες", sAccuracy: "ακρίβεια", sMedianRt: "διάμεσος χρόνος",
+      sMedianMiss: "διάμεση απόκλιση",
+      hFindings: "Βασικά ευρήματα", hAccMap: "Ακρίβεια ανά χώρα", hTapMap: "Όλες οι επιλογές",
+      capAcc: "Πράσινο = πάντα σωστό · κόκκινο = ποτέ σωστό · λευκό = δεν ζητήθηκε",
+      capTaps: "Πράσινη κουκκίδα = σωστό · κόκκινη = λάθος",
+      hPerCountry: "Αποτελέσματα ανά χώρα",
+      thNum: "#", thCountry: "Χώρα", thAsked: "Ζητήθηκε", thCorrect: "Σωστά",
+      thMedRt: "Διάμ. χρόνος", thMedMiss: "Διάμ. απόκλιση", thConfused: "Συχνότερη σύγχυση",
+      hByAge: "Αποτελέσματα ανά ηλικιακή ομάδα", hByEdu: "Αποτελέσματα ανά επίπεδο εκπαίδευσης",
+      hByGender: "Αποτελέσματα ανά φύλο",
+      thGroup: "Ομάδα", thParticipants: "Συμμετέχοντες", thResponses: "Απαντήσεις",
+      smallGroups: "Ομάδες με λιγότερους από 5 συμμετέχοντες — ερμηνεύστε με προσοχή.",
+      noCountry: "(καμία χώρα)",
+      fParticipants: (n, c, acc, r) => n + " συμμετέχοντες (" + c + " ολοκλήρωσαν). Συνολική ακρίβεια: " + acc + " σε " + r + " απαντήσεις.",
+      fRt: (rt, dur) => "Διάμεσος χρόνος απόκρισης: " + rt + " δευτ. ανά ερώτημα" + (dur ? "· διάμεσος χρόνος ολοκλήρωσης: " + dur + " λεπτά." : "."),
+      fBest: l => "Καλύτερα γνωστές: " + l + ".", fWorst: l => "Λιγότερο γνωστές: " + l + ".",
+      fMiss: km => "Διάμεση απόσταση αστοχίας (λάθος απαντήσεις, από το πλησιέστερο σύνορο): " + km + " χλμ.",
+      fConfusion: (a, b, n) => a + ": συγχύστηκε με " + b + " " + n + " φορές.",
+      fSeaMiss: n => n + " επιλογές δεν αντιστοιχούν σε χώρα (ανοιχτή θάλασσα).",
+      fSeaSnap: n => n + " επιλογές έγιναν στη θάλασσα και αποδόθηκαν στην πλησιέστερη ακτή.",
+      enterCreds: "Συμπληρώστε email και κωδικό", loginFailed: "Η είσοδος απέτυχε: ",
+      ageUnder18: "Κάτω των 18",
+      dgPageUrl: "Διεύθυνση:", dgOrigin: "Προέλευση:", dgBrowser: "Πρόγραμμα περιήγησης:", dgOnline: "Σύνδεση:",
+      dgFileWarn: "  ⚠ Άνοιξε ως τοπικό αρχείο. Τα προγράμματα περιήγησης μπλοκάρουν τις κλήσεις\n    βάσης από file:// — χρησιμοποιήστε τη διαδικτυακή διεύθυνση.",
+      dgStorage: "Τοπική αποθήκευση:", dgWorking: "λειτουργεί",
+      dgBlocked: "ΜΠΛΟΚΑΡΙΣΜΕΝΗ (ιδιωτική περιήγηση;) — χρήση προσωρινής μνήμης",
+      dgPending: "Ουρά αποστολής:", dgRecords: "εγγραφές",
+      dgParked: "Σε αναμονή:", dgParkedNote: "εγγραφές τέθηκαν στην άκρη μετά από επανειλημμένες αποτυχίες",
+      dgFirstErr: "  πρώτο σφάλμα: ", dgLastErr: "Τελευταίο σφάλμα:",
+      dgRead: "Έλεγχος ανάγνωσης βάσης…", dgWrite: "Έλεγχος δικαιωμάτων εγγραφής…",
+      dgCols: "Έλεγχος στηλών του πίνακα responses…",
+      dgDone: "Ολοκληρώθηκε. Αντιγράψτε ολόκληρη την αναφορά αν χρειάζεστε βοήθεια."
+    }
+  };
+  let uiLang = "en";
+  try { uiLang = localStorage.getItem("gqr-uilang") || "en"; } catch (e) {}
+  if (!UI[uiLang]) uiLang = "en";
+  const u = k => UI[uiLang][k];
+
+  function applyUI() {
+    document.querySelectorAll("[data-ui]").forEach(el => {
+      const v = UI[uiLang][el.dataset.ui];
+      if (typeof v === "string") el.innerHTML = v;
+    });
+    document.querySelectorAll("[data-ui-ph]").forEach(el => {
+      const v = UI[uiLang][el.dataset.uiPh];
+      if (typeof v === "string") el.placeholder = v;
+    });
+    document.querySelectorAll(".uilang-btn").forEach(b =>
+      b.classList.toggle("active", b.dataset.uilang === uiLang));
+  }
+  function setUiLang(l) {
+    uiLang = l;
+    try { localStorage.setItem("gqr-uilang", l); } catch (e) {}
+    applyUI();
+    updateSyncBadge();
+    if (document.getElementById("admin-screen").classList.contains("active")) renderQuizList(true);
+  }
+  document.querySelectorAll(".uilang-btn").forEach(b =>
+    b.addEventListener("click", () => setUiLang(b.dataset.uilang)));
+
   // ================= Research strings =================
   const RSTR = {
     en: {
@@ -789,15 +1001,15 @@
     const err = LS.get("gqr-lasterr") || "";
     const el = document.getElementById("sync-badge");
     if (el) {
-      el.textContent = n ? n + " records waiting to upload" : "all data synced";
+      el.textContent = n ? u("waitingUpload")(n) : u("syncedAll");
       el.title = n ? err : "";
     }
     const p = document.getElementById("pending-note");
     if (p) {
       p.style.display = n ? "block" : "none";
       if (n) {
-        p.innerHTML = n + " responses are stored on this device and will upload automatically." +
-          (err ? "<br><span style='color:var(--crimson)'>Last error: " + err.replace(/</g, "&lt;") + "</span>" : "");
+        p.innerHTML = u("pendingNote")(n) +
+          (err ? "<br><span style='color:var(--crimson)'>" + u("lastError") + err.replace(/</g, "&lt;") + "</span>" : "");
       }
     }
   }
@@ -990,6 +1202,9 @@
   }
   window.addEventListener("resize", layout);
 
+  applyUI();
+  document.getElementById("ui-lang-toggle").classList.add("on");
+
   // ================= Load map data =================
   d3.json("https://cdn.jsdelivr.net/npm/world-atlas@2/countries-50m.json")
     .then(world => {
@@ -1055,9 +1270,12 @@
   }
 
   // ================= Participant flow =================
+  const UI_SCREENS = ["home-screen", "login-screen", "admin-screen", "diag-screen", "report-screen"];
   function show(id) {
     document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
     if (id) document.getElementById(id).classList.add("active");
+    // the researcher language switch is irrelevant (and confusing) on participant screens
+    document.getElementById("ui-lang-toggle").classList.toggle("on", UI_SCREENS.includes(id));
   }
 
   async function tryJoin(code) {
@@ -1313,9 +1531,9 @@
   document.getElementById("login-btn").addEventListener("click", async () => {
     const email = document.getElementById("login-email").value.trim();
     const pass = document.getElementById("login-pass").value;
-    if (!email || !pass) { toast("Enter email and password", "bad"); return; }
+    if (!email || !pass) { toast(u("enterCreds"), "bad"); return; }
     const { error } = await sb.auth.signInWithPassword({ email, password: pass });
-    if (error) { toast("Login failed: " + error.message, "bad"); return; }
+    if (error) { toast(u("loginFailed") + error.message, "bad"); return; }
     document.getElementById("login-pass").value = "";
     openAdmin();
   });
@@ -1330,7 +1548,7 @@
   document.getElementById("sync-now-btn").addEventListener("click", async () => {
     await Q.flush();
     await renderQuizList();
-    toast(Q.count() ? Q.count() + " records still pending on this device" : "Up to date", Q.count() ? "bad" : "good");
+    toast(Q.count() ? u("stillPending")(Q.count()) : u("upToDate"), Q.count() ? "bad" : "good");
   });
   document.getElementById("admin-home-btn").addEventListener("click", () => show("home-screen"));
   document.getElementById("new-quiz-btn").addEventListener("click", () => openBuilder(null));
@@ -1344,13 +1562,13 @@
 
   async function renderQuizList(silent) {
     const tbody = document.getElementById("quiz-rows");
-    if (!silent) tbody.innerHTML = "<tr><td colspan='6' style='color:var(--muted)'>Loading…</td></tr>";
+    if (!silent) tbody.innerHTML = "<tr><td colspan='6' style='color:var(--muted)'>" + u("loading") + "</td></tr>";
     let quizzes = [], sessions = [];
     try {
       quizzes = await Store.quizzes();
       sessions = await Store.allSessions();
     } catch (e) {
-      if (!silent) toast("Could not load quizzes — check your connection and login", "bad");
+      if (!silent) toast(u("loadFailed"), "bad");
       else return;
     }
     tbody.innerHTML = "";
@@ -1378,24 +1596,24 @@
       };
       const sep = () => bar.appendChild(document.createElement("span")).className = "act-sep";
 
-      mk("Copy link", "Copy the participant link", () => {
+      mk(u("aCopyLink"), u("tCopyLink"), () => {
         const link = location.href.split("#")[0] + "#" + q.code;
-        navigator.clipboard ? navigator.clipboard.writeText(link).then(() => toast("Link copied", "good"))
-          : prompt("Participant link:", link);
+        navigator.clipboard ? navigator.clipboard.writeText(link).then(() => toast(u("linkCopied"), "good"))
+          : prompt(u("participantLink"), link);
       });
-      mk("Test run", "Take the quiz yourself", () => { location.hash = q.code; tryJoin(q.code); });
+      mk(u("aTestRun"), u("tTestRun"), () => { location.hash = q.code; tryJoin(q.code); });
       sep();
-      mk("Duplicate", "Create a copy of this quiz", () => {
+      mk(u("aDuplicate"), u("tDuplicate"), () => {
         openBuilder(q, true);
-        toast("Duplicate — a new code is assigned when you save", "good");
+        toast(u("dupNote"), "good");
       });
       sep();
-      mk("Results", "Open the analysis report", () => openReport(q.code), "act-strong");
-      mk("CSV", "Download raw data as CSV", () => exportCSV(q.code));
+      mk(u("aResults"), u("tResults"), () => openReport(q.code), "act-strong");
+      mk(u("aCsv"), u("tCsv"), () => exportCSV(q.code));
       sep();
-      mk("×", "Delete this quiz and all its data", async () => {
-        if (!confirm("Delete quiz \"" + q.name + "\" and all its data?")) return;
-        try { await Store.deleteQuiz(q.code); } catch (e) { toast("Delete failed", "bad"); }
+      mk("×", u("tDelete"), async () => {
+        if (!confirm(u("confirmDelete")(q.name))) return;
+        try { await Store.deleteQuiz(q.code); } catch (e) { toast(u("deleteFailed"), "bad"); }
         renderQuizList();
       }, "act-danger");
       tbody.appendChild(tr);
@@ -1405,7 +1623,7 @@
   function openBuilder(q, asCopy) {
     editingCode = (q && !asCopy) ? q.code : null;
     document.getElementById("builder-title").textContent =
-      !q ? "New quiz" : asCopy ? "Duplicate of " + q.name : "Edit quiz — " + q.code;
+      !q ? u("newQuiz") : asCopy ? u("duplicateOf")(q.name) : u("editQuiz")(q.code);
     document.getElementById("q-name").value = q ? (asCopy ? q.name + " (copy)" : q.name) : "";
     document.getElementById("q-lang").value = q ? q.lang : "en";
     document.getElementById("q-feedback").checked = q ? !!q.feedback : false;
@@ -1427,8 +1645,8 @@
   function addCqRow(label, choices) {
     const row = document.createElement("div");
     row.className = "cq-row";
-    row.innerHTML = "<input type='text' class='cq-label' placeholder='Question, e.g., Native language'>" +
-      "<input type='text' class='cq-choices' placeholder='Choices, comma-separated (optional)'>";
+    row.innerHTML = "<input type='text' class='cq-label' placeholder=\"" + u("cqLabelPh") + "\">" +
+      "<input type='text' class='cq-choices' placeholder=\"" + u("cqChoicesPh") + "\">";
     row.querySelector(".cq-label").value = label || "";
     row.querySelector(".cq-choices").value = choices || "";
     const rm = document.createElement("button");
@@ -1488,7 +1706,7 @@
   });
   document.getElementById("c-add").addEventListener("click", () => {
     const f = findByDisplay(document.getElementById("c-search").value);
-    if (!f) { toast("Country not recognized", "bad"); return; }
+    if (!f) { toast(u("notRecognized"), "bad"); return; }
     if (!builderCountries.includes(f.properties.name)) builderCountries.push(f.properties.name);
     document.getElementById("c-search").value = "";
     renderCountryList();
@@ -1509,8 +1727,8 @@
 
   document.getElementById("q-save").addEventListener("click", async () => {
     const name = document.getElementById("q-name").value.trim();
-    if (!name) { toast("Give the quiz a name", "bad"); return; }
-    if (!builderCountries.length) { toast("Add at least one country", "bad"); return; }
+    if (!name) { toast(u("nameNeeded"), "bad"); return; }
+    if (!builderCountries.length) { toast(u("itemsNeeded"), "bad"); return; }
     const custom = [];
     document.querySelectorAll("#cq-rows .cq-row").forEach(row => {
       const label = row.querySelector(".cq-label").value.trim();
@@ -1537,10 +1755,10 @@
     };
     try {
       await Store.saveQuiz(quiz);
-      toast("Quiz saved — code " + quiz.code, "good");
+      toast(u("quizSaved")(quiz.code), "good");
       switchAdminView(false);
     } catch (e) {
-      toast("Save failed — check connection and login", "bad");
+      toast(u("saveFailed"), "bad");
     }
   });
 
@@ -1566,12 +1784,12 @@
     const lines = [];
     const say = s => { lines.push(s); out.textContent = lines.join("\n"); };
 
-    say("Page URL:      " + location.href);
-    say("Origin:        " + location.origin);
-    if (location.protocol === "file:")
-      say("  ⚠ Opened as a local file. Browsers block database calls from file:// —\n    use the GitHub Pages address instead.");
-    say("Browser:       " + navigator.userAgent);
-    say("Online flag:   " + navigator.onLine);
+    const pad = s => (s + "                ").slice(0, 16);
+    say(pad(u("dgPageUrl")) + location.href);
+    say(pad(u("dgOrigin")) + location.origin);
+    if (location.protocol === "file:") say(u("dgFileWarn"));
+    say(pad(u("dgBrowser")) + navigator.userAgent);
+    say(pad(u("dgOnline")) + navigator.onLine);
     say("");
 
     let lsOk = false;
@@ -1580,18 +1798,18 @@
       localStorage.removeItem("gqr-test");
       lsOk = true;
     } catch (e) {}
-    say("Local storage: " + (lsOk ? "working" : "BLOCKED (private browsing?) — using memory fallback"));
-    say("Pending queue: " + Q.count() + " record(s)");
+    say(pad(u("dgStorage")) + (lsOk ? u("dgWorking") : u("dgBlocked")));
+    say(pad(u("dgPending")) + Q.count() + " " + u("dgRecords"));
     const parked = JSON.parse(LS.get("gqr-failed") || "[]");
     if (parked.length) {
-      say("Parked:        " + parked.length + " record(s) set aside after repeated failures");
-      say("  first error: " + parked[0].error);
+      say(pad(u("dgParked")) + parked.length + " " + u("dgParkedNote"));
+      say(u("dgFirstErr") + parked[0].error);
     }
     const le = LS.get("gqr-lasterr");
-    if (le) say("Last error:    " + le);
+    if (le) say(pad(u("dgLastErr")) + le);
     say("");
 
-    say("Testing database read…");
+    say(u("dgRead"));
     try {
       const { data, error } = await sb.from("quizzes").select("code").limit(5);
       if (error) say("  READ FAILED: " + (error.message || JSON.stringify(error)));
@@ -1600,7 +1818,7 @@
       say("  READ FAILED (network/CORS): " + (e.message || e));
     }
 
-    say("Testing database write permission…");
+    say(u("dgWrite"));
     try {
       const probe = "diag-" + Math.random().toString(36).slice(2, 10);
       const { error } = await sb.from("sessions").insert({ id: probe, quiz_code: "__DIAGNOSTIC__" });
@@ -1624,7 +1842,7 @@
     }
 
     say("");
-    say("Testing responses table columns…");
+    say(u("dgCols"));
     try {
       const { error } = await sb.from("responses").select("id,session_id,sea,zoom_level").limit(1);
       if (error) say("  COLUMN CHECK FAILED: " + error.message +
@@ -1634,7 +1852,7 @@
       say("  COLUMN CHECK FAILED: " + (e.message || e));
     }
     say("");
-    say("Done. Copy this whole report if you need help interpreting it.");
+    say(u("dgDone"));
   }
 
   // ================= Auto-analysis report =================
@@ -1665,18 +1883,18 @@
   async function openReport(code) {
     show("report-screen");
     const body = document.getElementById("report-body");
-    body.innerHTML = "<p style='color:var(--muted)'>Loading data…</p>";
+    body.innerHTML = "<p style='color:var(--muted)'>" + u("loadingData") + "</p>";
     let quiz, sessions, responses;
     try {
       quiz = await Store.getQuiz(code);
       sessions = await Store.sessionsFor(code);
       responses = await Store.responsesFor(code);
     } catch (e) {
-      body.innerHTML = "<p>Could not load data — check connection and login.</p>";
+      body.innerHTML = "<p>" + u("loadFailed") + "</p>";
       return;
     }
     if (!responses.length) {
-      body.innerHTML = "<h2>" + quiz.name + "</h2><p style='color:var(--muted)'>No responses recorded yet.</p>";
+      body.innerHTML = "<h2>" + quiz.name + "</h2><p style='color:var(--muted)'>" + u("repNoResponses") + "</p>";
       return;
     }
     const med = arr => {
@@ -1726,46 +1944,49 @@
     const missTaps = responses.filter(r => r.clicked === "(none)").length;
 
     const findings = [];
-    findings.push(sessions.length + " participants (" + compl.length + " completed). Overall accuracy: " +
-      pct(totalOk / responses.length) + " across " + responses.length + " responses.");
-    if (allRts.length) findings.push("Median response time: " + (med(allRts) / 1000).toFixed(1) + "s per item" +
-      (durs.length ? "; median completion time: " + Math.round(med(durs) / 60 * 10) / 10 + " min." : "."));
-    if (easiest.length) findings.push("Best known: " + easiest.map(r => displayOf(r.name) + " (" + pct(r.acc) + ")").join(", ") + ".");
-    if (hardest.length) findings.push("Least known: " + hardest.map(r => displayOf(r.name) + " (" + pct(r.acc) + ")").join(", ") + ".");
-    if (allErrs.length) findings.push("Median miss distance (wrong answers, to nearest border of the target): " + med(allErrs) + " km.");
+    findings.push(u("fParticipants")(sessions.length, compl.length,
+      pct(totalOk / responses.length), responses.length));
+    if (allRts.length) findings.push(u("fRt")((med(allRts) / 1000).toFixed(1),
+      durs.length ? Math.round(med(durs) / 60 * 10) / 10 : null));
+    if (easiest.length) findings.push(u("fBest")(easiest.map(r => displayOf(r.name) + " (" + pct(r.acc) + ")").join(", ")));
+    if (hardest.length) findings.push(u("fWorst")(hardest.map(r => displayOf(r.name) + " (" + pct(r.acc) + ")").join(", ")));
+    if (allErrs.length) findings.push(u("fMiss")(med(allErrs)));
     for (const c of topConf)
-      findings.push(displayOf(c.asked) + " was mistaken for " + displayOf(c.clicked) + " " + c.n + " times.");
-    if (missTaps) findings.push(missTaps + " taps landed on no country (open sea, beyond the snap distance).");
+      findings.push(u("fConfusion")(displayOf(c.asked), displayOf(c.clicked), c.n));
+    if (missTaps) findings.push(u("fSeaMiss")(missTaps));
     const seaAssigned = responses.filter(r => r.sea).length;
-    if (seaAssigned) findings.push(seaAssigned + " taps landed at sea and were assigned to the nearest coastline.");
+    if (seaAssigned) findings.push(u("fSeaSnap")(seaAssigned));
 
     let html = "<h2 style='margin-bottom:2px'>" + quiz.name + "</h2>" +
-      "<p style='color:var(--muted);font-size:13px'>Code " + code + " · " + (quiz.lang === "el" ? "Greek" : "English") +
-      " · " + quiz.countries.length + " items · feedback " + (quiz.feedback ? "on" : "off") +
-      " · zoom " + (quiz.zoom ? "on" : "off") + " · generated " + new Date().toLocaleString() + "</p>";
+      "<p style='color:var(--muted);font-size:13px'>" + u("repCode") + " " + code + " · " +
+      (quiz.lang === "el" ? "Ελληνικά" : "English") +
+      " · " + quiz.countries.length + " " + u("repItems") + " · " + u("repFeedback") + " " + u(quiz.feedback ? "on" : "off") +
+      " · " + u("repZoom") + " " + u(quiz.zoom ? "on" : "off") + " · " + u("repGenerated") + " " + new Date().toLocaleString() + "</p>";
     html += "<div class='stat-cards'>" +
-      "<div class='stat'><b>" + sessions.length + "</b>participants</div>" +
-      "<div class='stat'><b>" + pct(totalOk / responses.length) + "</b>accuracy</div>" +
-      "<div class='stat'><b>" + (allRts.length ? (med(allRts) / 1000).toFixed(1) + "s" : "—") + "</b>median RT</div>" +
-      "<div class='stat'><b>" + (allErrs.length ? med(allErrs) + " km" : "—") + "</b>median miss distance</div></div>";
-    html += "<h3 style='font-size:16px'>Main findings</h3><ul class='findings'>" +
+      "<div class='stat'><b>" + sessions.length + "</b>" + u("sParticipants") + "</div>" +
+      "<div class='stat'><b>" + pct(totalOk / responses.length) + "</b>" + u("sAccuracy") + "</div>" +
+      "<div class='stat'><b>" + (allRts.length ? (med(allRts) / 1000).toFixed(1) + "s" : "—") + "</b>" + u("sMedianRt") + "</div>" +
+      "<div class='stat'><b>" + (allErrs.length ? med(allErrs) + " km" : "—") + "</b>" + u("sMedianMiss") + "</div></div>";
+    html += "<h3 style='font-size:16px'>" + u("hFindings") + "</h3><ul class='findings'>" +
       findings.map(f => "<li>" + f + "</li>").join("") + "</ul>";
     html += "<div class='rep-maps'>" +
-      "<div><h3>Accuracy by country</h3><div id='rmap-acc'></div><div class='cap'>Green = always correct · red = never correct · white = not asked</div></div>" +
-      "<div><h3>Every tap</h3><div id='rmap-taps'></div><div class='cap'>Green dot = correct tap · red dot = wrong tap</div></div></div>";
-    html += "<h3 style='font-size:16px'>Per-country results</h3>" +
-      "<table class='rep'><thead><tr><th>#</th><th>Country</th><th>Asked</th><th>Correct</th><th>Median RT</th><th>Median miss</th><th>Most confused with</th></tr></thead><tbody>" +
+      "<div><h3>" + u("hAccMap") + "</h3><div id='rmap-acc'></div><div class='cap'>" + u("capAcc") + "</div></div>" +
+      "<div><h3>" + u("hTapMap") + "</h3><div id='rmap-taps'></div><div class='cap'>" + u("capTaps") + "</div></div></div>";
+    html += "<h3 style='font-size:16px'>" + u("hPerCountry") + "</h3>" +
+      "<table class='rep'><thead><tr><th>" + u("thNum") + "</th><th>" + u("thCountry") + "</th><th>" + u("thAsked") +
+      "</th><th>" + u("thCorrect") + "</th><th>" + u("thMedRt") + "</th><th>" + u("thMedMiss") +
+      "</th><th>" + u("thConfused") + "</th></tr></thead><tbody>" +
       rows.map((r, i) => {
         const confTop = Object.entries(r.conf).sort((a, b) => b[1] - a[1])[0];
         return "<tr><td>" + (i + 1) + "</td><td>" + displayOf(r.name) + "</td><td>" + r.n + "</td><td>" + pct(r.acc) +
           "</td><td>" + (r.rts.length ? (med(r.rts) / 1000).toFixed(1) + "s" : "—") +
           "</td><td>" + (r.errs.length ? med(r.errs) + " km" : "—") +
-          "</td><td>" + (confTop ? (confTop[0] === "(none)" ? "(no country)" : displayOf(confTop[0])) + " ×" + confTop[1] : "—") + "</td></tr>";
+          "</td><td>" + (confTop ? (confTop[0] === "(none)" ? u("noCountry") : displayOf(confTop[0])) + " ×" + confTop[1] : "—") + "</td></tr>";
       }).join("") + "</tbody></table>";
 
     const demoOf = {};
     for (const s of sessions) demoOf[s.id] = s.demo || {};
-    const AGE_ORDER = ["Under 18", "18–29", "30–44", "45–59", "60+"];
+    const AGE_ORDER = [u("ageUnder18"), "18–29", "30–44", "45–59", "60+"];
     const EDU_ORDER = RSTR.en.eduOpts.concat(RSTR.el.eduOpts);
     const GEN_ORDER = RSTR.en.genderOpts.concat(RSTR.el.genderOpts);
     function breakdown(title, groupFn, orderList) {
@@ -1790,22 +2011,24 @@
       });
       const small = keys.some(k => groups[k].sids.size < 5);
       return "<h3 style='font-size:16px;margin-top:18px'>" + title + "</h3>" +
-        "<table class='rep'><thead><tr><th>Group</th><th>Participants</th><th>Responses</th><th>Accuracy</th><th>Median RT</th><th>Median miss</th></tr></thead><tbody>" +
+        "<table class='rep'><thead><tr><th>" + u("thGroup") + "</th><th>" + u("thParticipants") +
+        "</th><th>" + u("thResponses") + "</th><th>" + u("thCorrect") + "</th><th>" + u("thMedRt") +
+        "</th><th>" + u("thMedMiss") + "</th></tr></thead><tbody>" +
         keys.map(k => {
           const gr = groups[k];
           return "<tr><td>" + k + "</td><td>" + gr.sids.size + "</td><td>" + gr.resp + "</td><td>" + pct(gr.ok / gr.resp) +
             "</td><td>" + (gr.rts.length ? (med(gr.rts) / 1000).toFixed(1) + "s" : "—") +
             "</td><td>" + (gr.errs.length ? med(gr.errs) + " km" : "—") + "</td></tr>";
         }).join("") + "</tbody></table>" +
-        (small ? "<p style='font-size:12px;color:var(--muted);margin-top:4px'>Groups with fewer than 5 participants — interpret with caution.</p>" : "");
+        (small ? "<p style='font-size:12px;color:var(--muted);margin-top:4px'>" + u("smallGroups") + "</p>" : "");
     }
-    html += breakdown("Results by age group", d => {
+    html += breakdown(u("hByAge"), d => {
       const a = parseInt(d.age);
       if (isNaN(a)) return null;
-      return a < 18 ? "Under 18" : a < 30 ? "18–29" : a < 45 ? "30–44" : a < 60 ? "45–59" : "60+";
+      return a < 18 ? u("ageUnder18") : a < 30 ? "18–29" : a < 45 ? "30–44" : a < 60 ? "45–59" : "60+";
     }, AGE_ORDER);
-    html += breakdown("Results by education level", d => d.education || null, EDU_ORDER);
-    html += breakdown("Results by gender", d => d.gender || null, GEN_ORDER);
+    html += breakdown(u("hByEdu"), d => d.education || null, EDU_ORDER);
+    html += breakdown(u("hByGender"), d => d.gender || null, GEN_ORDER);
     body.innerHTML = html;
 
     miniMap(document.getElementById("rmap-acc"), f => {
@@ -1852,7 +2075,7 @@
       sessions = await Store.sessionsFor(code);
       responses = await Store.responsesFor(code);
     } catch (e) {
-      toast("Export failed — check connection and login", "bad");
+      toast(u("exportFailed"), "bad");
       return;
     }
     const customLabels = (quiz.custom || []).map(c => c.label);
