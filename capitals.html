@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Borderline — World capitals</title>
+<meta name="description" content="Name the capital of every country — multiple choice or type it yourself. Part of Borderline geography games.">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="icon" href="favicon-32.png" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="manifest" href="site.webmanifest">
+<meta name="theme-color" content="#002147">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Capitals">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700;9..144,900&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper: #F4F0E8; --ink: #002147; --muted: #6B6459; --line: #C9C2B8;
+    --accent: #002147; --crimson: #A50021; --marigold: #FDB94E; --butter: #FDE169;
+    --good: #1D7A44; --good-soft: #D8EEDF; --bad: #A50021; --bad-soft: #F7DCE1;
+    --serif: 'Fraunces', Georgia, serif;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { min-height: 100%; }
+  body {
+    font-family: 'Space Grotesk', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+    background: var(--paper); color: var(--ink);
+    display: flex; flex-direction: column; align-items: center;
+    padding: 44px 16px 40px; min-height: 100vh; overflow-x: hidden;
+  }
+  @supports (min-height: 100dvh) { body { min-height: 100dvh; } }
+  #lang-toggle {
+    position: absolute; top: 14px; right: 14px; z-index: 20; display: flex;
+    border: 1px solid var(--line); border-radius: 10px; overflow: hidden;
+    background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+  }
+  .lang-btn { border: none; background: #fff; color: var(--muted);
+    padding: 7px 13px; font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit; }
+  .lang-btn.active { background: var(--ink); color: var(--paper); }
+
+  .screen { display: none; width: 100%; max-width: 620px; }
+  .screen.active { display: block; }
+
+  h1 { font-family: var(--serif); font-weight: 900; letter-spacing: -1px;
+    font-size: clamp(38px, 7vw, 60px); line-height: 1; text-align: center; }
+  .brand-rule { border-top: 3px dashed var(--crimson); width: 100vw; margin: 18px 0 14px calc(50% - 50vw); }
+  .tagline { font-size: 13px; letter-spacing: 4px; text-transform: uppercase;
+    color: var(--ink); opacity: 0.75; margin-bottom: 28px; text-align: center; }
+
+  .row-label { font-size: 12px; letter-spacing: 2px; text-transform: uppercase;
+    color: var(--muted); margin-bottom: 8px; text-align: center; }
+  .pill-row { display: flex; gap: 8px; justify-content: center; margin-bottom: 22px; flex-wrap: wrap; }
+  .pill { border: 1.5px solid rgba(0,33,71,0.35); background: #fff; border-radius: 999px;
+    padding: 8px 16px; font-size: 14px; cursor: pointer; color: var(--ink); font-family: inherit; }
+  .pill.active { border-color: var(--ink); color: var(--paper); font-weight: 700; background: var(--ink); }
+  .pill .cnt { margin-left: 6px; font-size: 12px; opacity: 0.85; }
+
+  .mode-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; margin-bottom: 18px; }
+  .mode-btn { border: 2px solid var(--ink); background: #fff; border-radius: 10px;
+    padding: 16px 14px; cursor: pointer; text-align: left; font-family: inherit;
+    transition: border-color .15s, box-shadow .15s, transform .1s; }
+  .mode-btn:hover { border-color: var(--crimson); box-shadow: 0 3px 12px rgba(165,0,33,.16); transform: translateY(-1px); }
+  .mode-btn .m-title { font-family: var(--serif); font-size: 19px; font-weight: 600; margin-bottom: 3px; }
+  .mode-btn .m-desc { font-size: 13px; color: var(--muted); }
+  .mode-btn[data-mode="survival"] { background: var(--crimson); border-color: var(--crimson); }
+  .mode-btn[data-mode="survival"] .m-title { color: var(--butter); }
+  .mode-btn[data-mode="survival"] .m-desc { color: var(--paper); }
+
+  /* ---- play screen ---- */
+  #play-head { display: flex; justify-content: space-between; align-items: center;
+    font-size: 13px; color: var(--muted); margin-bottom: 26px; gap: 12px; flex-wrap: wrap; }
+  #play-head b { color: var(--ink); font-size: 16px; }
+  .qcard { text-align: center; margin-bottom: 26px; }
+  .qlabel { font-size: 12px; letter-spacing: 3px; text-transform: uppercase; color: var(--muted); margin-bottom: 10px; }
+  .qcountry { font-family: var(--serif); font-weight: 900; font-size: clamp(30px, 6vw, 46px);
+    line-height: 1.1; letter-spacing: -0.5px; }
+  .choices { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; }
+  .choice { border: 2px solid var(--ink); background: #fff; border-radius: 10px;
+    padding: 15px 16px; font-size: 17px; cursor: pointer; font-family: inherit; color: var(--ink);
+    text-align: center; transition: background .12s, border-color .12s; }
+  .choice:hover:not(:disabled) { background: #FAE3B3; }
+  .choice.right { background: var(--good-soft); border-color: var(--good); color: var(--good); font-weight: 700; }
+  .choice.wrong { background: var(--bad-soft); border-color: var(--bad); color: var(--bad); }
+  .choice:disabled { cursor: default; }
+  .type-wrap { display: flex; gap: 8px; }
+  #answer-input { flex: 1; padding: 14px 16px; border: 2px solid var(--ink); border-radius: 10px;
+    font-size: 18px; font-family: inherit; background: #fff; color: var(--ink); }
+  #answer-input:focus { outline: none; border-color: var(--crimson); }
+  #submit-btn { border: none; background: var(--ink); color: var(--paper); border-radius: 10px;
+    padding: 0 22px; font-size: 16px; cursor: pointer; font-family: inherit; }
+  .verdict { text-align: center; margin-top: 18px; font-size: 17px; min-height: 52px; }
+  .verdict.good { color: var(--good); }
+  .verdict.bad { color: var(--bad); }
+  .verdict .sub { display: block; font-size: 14px; color: var(--muted); margin-top: 4px; }
+
+  /* ---- results ---- */
+  .big-score { font-family: var(--serif); font-size: 56px; font-weight: 900; color: var(--crimson);
+    text-align: center; margin: 10px 0 2px; }
+  .sub { color: var(--muted); font-size: 16px; text-align: center; margin-bottom: 22px; }
+  .result-stats { display: flex; justify-content: center; gap: 28px; margin: 18px 0 22px;
+    font-size: 13px; color: var(--muted); text-align: center; }
+  .result-stats b { display: block; font-family: var(--serif); font-size: 22px; color: var(--ink); }
+  #mistakes { text-align: left; font-size: 14px; max-height: 210px; overflow-y: auto;
+    border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; margin-bottom: 22px; background: #fff; }
+  #mistakes div { padding: 3px 0; color: var(--muted); }
+  #mistakes b { color: var(--ink); font-weight: 600; }
+  #mistakes .yours { color: var(--bad); }
+  .btn-row { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+  .primary-btn { background: var(--ink); color: var(--paper); border: none; border-radius: 10px;
+    padding: 12px 22px; font-size: 15px; cursor: pointer; font-family: inherit; }
+  .ghost-btn { background: #fff; color: var(--ink); border: 1.5px solid var(--line); border-radius: 10px;
+    padding: 12px 22px; font-size: 15px; cursor: pointer; font-family: inherit; }
+  .ghost-btn:hover { border-color: var(--ink); }
+
+  .colophon { margin-top: 34px; font-size: 12px; color: var(--muted);
+    display: flex; gap: 8px; justify-content: center; align-items: center; flex-wrap: wrap; }
+  .colophon a { color: var(--crimson); text-decoration: none; border-bottom: 1px solid transparent; }
+  .colophon a:hover { border-bottom-color: var(--crimson); }
+  .colophon .dot { opacity: 0.5; }
+  @media (max-width: 620px) {
+    body { padding-top: 60px; }
+    .choices { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<div id="lang-toggle">
+  <button class="lang-btn" data-lang="en">EN</button>
+  <button class="lang-btn" data-lang="el">ΕΛ</button>
+</div>
+
+<!-- ================= menu ================= -->
+<div class="screen active" id="menu-screen">
+  <h1>Borderline</h1>
+  <div class="brand-rule"></div>
+  <p class="tagline" data-i18n="tagline">World capitals</p>
+
+  <p class="row-label" data-i18n="lblAnswer">How do you want to answer?</p>
+  <div class="pill-row" id="answer-row">
+    <button class="pill" data-answer="choice" data-i18n="ansChoice">Multiple choice</button>
+    <button class="pill" data-answer="type" data-i18n="ansType">Type the answer</button>
+  </div>
+
+  <p class="row-label" data-i18n="lblDiff">Difficulty</p>
+  <div class="pill-row" id="diff-row">
+    <button class="pill" data-diff="easy"><span class="dl"></span><span class="cnt"></span></button>
+    <button class="pill" data-diff="moderate"><span class="dl"></span><span class="cnt"></span></button>
+    <button class="pill" data-diff="all"><span class="dl"></span><span class="cnt"></span></button>
+  </div>
+
+  <div class="mode-grid">
+    <button class="mode-btn" data-mode="10"><div class="m-title" data-i18n="m10">Quick</div><div class="m-desc" data-i18n="m10d">10 random countries</div></button>
+    <button class="mode-btn" data-mode="20"><div class="m-title" data-i18n="m20">Classic</div><div class="m-desc" data-i18n="m20d">20 random countries</div></button>
+    <button class="mode-btn" data-mode="marathon"><div class="m-title" data-i18n="mMara">Marathon</div><div class="m-desc" id="mara-desc"></div></button>
+    <button class="mode-btn" data-mode="survival"><div class="m-title" data-i18n="mSurv">Survival ∞</div><div class="m-desc"><span data-i18n="mSurvD">Play until your first mistake. Best: </span><span id="hiscore">0</span></div></button>
+  </div>
+
+  <p class="colophon">
+    <a href="index.html" data-i18n="allGames">← All games</a>
+    <span class="dot">·</span>
+    <span data-i18n="copyright">© 2026 Borderline</span>
+  </p>
+</div>
+
+<!-- ================= play ================= -->
+<div class="screen" id="play-screen">
+  <div id="play-head">
+    <div><span data-i18n="score">Score</span> <b id="score">0</b></div>
+    <div><span id="progress-label">Question</span> <b id="progress">1</b></div>
+    <div><span data-i18n="streak">Best streak</span> <b id="streak">0</b></div>
+    <button class="ghost-btn" id="quit-btn" style="padding:6px 12px;font-size:13px" data-i18n="endGame">End game</button>
+  </div>
+  <div class="qcard">
+    <div class="qlabel" data-i18n="qlabel">What is the capital of</div>
+    <div class="qcountry" id="q-country">—</div>
+  </div>
+  <div id="answer-area"></div>
+  <div class="verdict" id="verdict"></div>
+</div>
+
+<!-- ================= results ================= -->
+<div class="screen" id="results-screen">
+  <h1 style="font-size:clamp(28px,5vw,40px)" id="results-title">Results</h1>
+  <div class="big-score" id="final-score">0</div>
+  <div class="sub" id="final-sub"></div>
+  <div class="result-stats">
+    <div><b id="r-accuracy">—</b><span data-i18n="accuracy">Accuracy</span></div>
+    <div><b id="r-time">—</b><span data-i18n="avgTime">Avg. time</span></div>
+    <div><b id="r-streak">—</b><span data-i18n="streak">Best streak</span></div>
+  </div>
+  <div id="mistakes"></div>
+  <div class="btn-row">
+    <button class="primary-btn" id="again-btn" data-i18n="again">Play again</button>
+    <button class="ghost-btn" id="menu-btn" data-i18n="change">Change mode</button>
+  </div>
+  <p class="colophon">
+    <a href="index.html" data-i18n="allGames">← All games</a>
+  </p>
+</div>
+
+<script>
+const CAPDATA = [["Afghanistan","Afghanistan","Αφγανιστάν","Kabul","Καμπούλ",2,"","",65.93,33.82,"",""],["Albania","Albania","Αλβανία","Tirana","Τίρανα",2,"Tirane","Τιράνων",20.05,41.13,"",""],["Algeria","Algeria","Αλγερία","Algiers","Αλγέρι",2,"Alger","",2.63,28.06,"",""],["Andorra","Andorra","Ανδόρα","Andorra la Vella","Ανδόρα λα Βέγια",3,"Andorra","Ανδόρα",1.56,42.54,"",""],["Angola","Angola","Αγκόλα","Luanda","Λουάντα",3,"","",17.56,-12.31,"",""],["Antigua and Barb.","Antigua and Barbuda","Αντίγκουα και Μπαρμπούντα","Saint John's","Σεντ Τζονς",3,"St Johns|St. John's","",-61.79,17.08,"",""],["Argentina","Argentina","Αργεντινή","Buenos Aires","Μπουένος Άιρες",1,"","",-64.75,-34.54,"",""],["Armenia","Armenia","Αρμενία","Yerevan","Ερεβάν",2,"Erevan","",44.94,40.29,"",""],["Australia","Australia","Αυστραλία","Canberra","Καμπέρα",2,"","Κανμπέρα",134.21,-25.63,"Sydney|Σίδνεϊ",""],["Austria","Austria","Αυστρία","Vienna","Βιέννη",1,"Wien","",14.11,47.59,"",""],["Azerbaijan","Azerbaijan","Αζερμπαϊτζάν","Baku","Μπακού",2,"","",47.67,40.34,"",""],["Bahamas","Bahamas","Μπαχάμες","Nassau","Νασσάου",3,"","Νασάου",-78.04,24.7,"",""],["Bahrain","Bahrain","Μπαχρέιν","Manama","Μανάμα",3,"","",50.54,26.04,"",""],["Bangladesh","Bangladesh","Μπανγκλαντές","Dhaka","Ντάκα",3,"Dacca","",90.23,23.89,"",""],["Barbados","Barbados","Μπαρμπάντος","Bridgetown","Μπρίτζταουν",3,"","",-59.56,13.18,"",""],["Belarus","Belarus","Λευκορωσία","Minsk","Μινσκ",2,"","Μίνσκ",28.02,53.52,"",""],["Belgium","Belgium","Βέλγιο","Brussels","Βρυξέλλες",1,"Bruxelles|Brussel","",4.65,50.64,"",""],["Belize","Belize","Μπελίζ","Belmopan","Μπελμοπάν",3,"","",-88.72,17.19,"",""],["Benin","Benin","Μπενίν","Porto-Novo","Πόρτο Νόβο",3,"Porto Novo|Cotonou","Κοτονού",2.33,9.64,"",""],["Bhutan","Bhutan","Μπουτάν","Thimphu","Θίμφου",3,"","",90.4,27.41,"",""],["Bolivia","Bolivia","Βολιβία","Sucre","Σούκρε",3,"La Paz","Λα Πας",-64.7,-16.68,"",""],["Bosnia and Herz.","Bosnia and Herzegovina","Βοσνία και Ερζεγοβίνη","Sarajevo","Σαράγεβο",2,"","",17.77,44.17,"",""],["Botswana","Botswana","Μποτσουάνα","Gaborone","Γκαμπορόνε",3,"","",23.81,-22.17,"",""],["Brazil","Brazil","Βραζιλία","Brasília","Μπραζίλια",1,"Brasilia","",-53.24,-10.69,"Rio de Janeiro|Ρίο ντε Τζανέιρο",""],["Brunei","Brunei","Μπρουνέι","Bandar Seri Begawan","Μπαντάρ Σέρι Μπεγκαουάν",3,"","",114.59,4.49,"",""],["Bulgaria","Bulgaria","Βουλγαρία","Sofia","Σόφια",1,"","",25.21,42.77,"",""],["Burkina Faso","Burkina Faso","Μπουρκίνα Φάσο","Ouagadougou","Ουαγκαντούγκου",3,"","",-1.76,12.27,"",""],["Burundi","Burundi","Μπουρούντι","Gitega","Γκιτέγκα",3,"Bujumbura","Μπουζουμπούρα",29.88,-3.36,"",""],["Cabo Verde","Cabo Verde","Πράσινο Ακρωτήριο","Praia","Πράια",3,"","",-23.64,15.08,"",""],["Cambodia","Cambodia","Καμπότζη","Phnom Penh","Πνομ Πενχ",3,"","Πνομ Πεν",104.91,12.72,"",""],["Cameroon","Cameroon","Καμερούν","Yaoundé","Γιαουντέ",3,"Yaounde","",12.73,5.68,"",""],["Canada","Canada","Καναδάς","Ottawa","Οτάβα",1,"","Οττάβα",-99,58.59,"Toronto|Τορόντο",""],["Central African Rep.","Central African Republic","Κεντροαφρικανική Δημοκρατία","Bangui","Μπανγκί",3,"","",20.46,6.57,"",""],["Chad","Chad","Τσαντ","N'Djamena","Ντζαμένα",3,"NDjamena|Ndjamena","",18.64,15.28,"",""],["Chile","Chile","Χιλή","Santiago","Σαντιάγο",1,"Santiago de Chile","",-70.95,-34.36,"",""],["China","China","Κίνα","Beijing","Πεκίνο",1,"Peking","",103.35,36.76,"Shanghai|Σαγκάη",""],["Colombia","Colombia","Κολομβία","Bogotá","Μπογκοτά",1,"Bogota","",-73.08,3.9,"",""],["Comoros","Comoros","Κομόρες","Moroni","Μορόνι",3,"","",43.34,-11.65,"",""],["Congo","Republic of the Congo","Δημοκρατία του Κονγκό","Brazzaville","Μπραζαβίλ",3,"","",15.22,-0.84,"",""],["Costa Rica","Costa Rica","Κόστα Ρίκα","San José","Σαν Χοσέ",3,"San Jose","",-84.19,9.98,"",""],["Croatia","Croatia","Κροατία","Zagreb","Ζάγκρεμπ",1,"","",16.42,45.16,"",""],["Cuba","Cuba","Κούβα","Havana","Αβάνα",1,"La Habana|Habana","Χαβάνα",-78.91,21.63,"",""],["Cyprus","Cyprus","Κύπρος","Nicosia","Λευκωσία",1,"Lefkosia","",33.22,35.05,"",""],["Czechia","Czechia","Τσεχία","Prague","Πράγα",1,"Praha","",15.32,49.74,"",""],["Côte d'Ivoire","Côte d'Ivoire","Ακτή Ελεφαντοστού","Yamoussoukro","Γιαμουσούκρο",3,"Abidjan","Αμπιτζάν",-5.57,7.63,"",""],["Dem. Rep. Congo","Democratic Republic of the Congo","Λαϊκή Δημοκρατία του Κονγκό","Kinshasa","Κινσάσα",3,"","",23.64,-2.87,"",""],["Denmark","Denmark","Δανία","Copenhagen","Κοπεγχάγη",1,"København|Kobenhavn","",9.35,56.23,"",""],["Djibouti","Djibouti","Τζιμπουτί","Djibouti","Τζιμπουτί",3,"Djibouti City","",42.56,11.75,"",""],["Dominica","Dominica","Ντομίνικα","Roseau","Ροζό",3,"","",-61.36,15.44,"",""],["Dominican Rep.","Dominican Republic","Δομινικανή Δημοκρατία","Santo Domingo","Σάντο Ντομίνγκο",3,"","",-70.51,18.9,"",""],["Ecuador","Ecuador","Ισημερινός","Quito","Κίτο",3,"","Κουίτο",-78.39,-1.44,"Guayaquil|Γκουαγιακίλ",""],["Egypt","Egypt","Αίγυπτος","Cairo","Κάιρο",1,"Al Qahirah","",29.88,26.46,"",""],["El Salvador","El Salvador","Ελ Σαλβαδόρ","San Salvador","Σαν Σαλβαδόρ",2,"","",-88.87,13.74,"",""],["Eq. Guinea","Equatorial Guinea","Ισημερινή Γουινέα","Malabo","Μαλάμπο",3,"","",10.47,1.57,"",""],["Eritrea","Eritrea","Ερυθραία","Asmara","Ασμάρα",3,"","",38.85,15.36,"",""],["Estonia","Estonia","Εσθονία","Tallinn","Ταλίν",2,"Talinn","Ταλλίν",25.84,58.68,"",""],["Ethiopia","Ethiopia","Αιθιοπία","Addis Ababa","Αντίς Αμπέμπα",2,"Addis Abeba","",39.61,8.61,"",""],["Fiji","Fiji","Φίτζι","Suva","Σούβα",3,"","",177.97,-17.82,"",""],["Finland","Finland","Φινλανδία","Helsinki","Ελσίνκι",1,"","Χελσίνκι",26.21,64.26,"",""],["France","France","Γαλλία","Paris","Παρίσι",1,"","",2.46,46.57,"",""],["Gabon","Gabon","Γκαμπόν","Libreville","Λιμπρβίλ",3,"","Λιμπρεβίλ",11.79,-0.59,"",""],["Gambia","Gambia","Γκάμπια","Banjul","Μπανζούλ",3,"","",-15.4,13.45,"",""],["Georgia","Georgia","Γεωργία","Tbilisi","Τιφλίδα",2,"","Τμπιλίσι",43.52,42.17,"",""],["Germany","Germany","Γερμανία","Berlin","Βερολίνο",1,"","",10.35,51.03,"",""],["Ghana","Ghana","Γκάνα","Accra","Άκρα",3,"","Άκκρα",-1.22,7.95,"",""],["Greece","Greece","Ελλάδα","Athens","Αθήνα",1,"Athina","",22.57,39.46,"",""],["Grenada","Grenada","Γρενάδα","Saint George's","Σεντ Τζόρτζες",3,"St Georges|St. George's","",-61.68,12.12,"",""],["Guatemala","Guatemala","Γουατεμάλα","Guatemala City","Πόλη της Γουατεμάλας",3,"Guatemala","Γουατεμάλα",-90.37,15.69,"",""],["Guinea","Guinea","Γουινέα","Conakry","Κόνακρι",3,"","",-10.93,10.44,"",""],["Guinea-Bissau","Guinea-Bissau","Γουινέα-Μπισάου","Bissau","Μπισάου",3,"","",-14.92,12.06,"",""],["Guyana","Guyana","Γουιάνα","Georgetown","Τζόρτζταουν",3,"","",-58.98,4.79,"",""],["Haiti","Haiti","Αϊτή","Port-au-Prince","Πορτ-ο-Πρενς",3,"Port au Prince","Πορτ ο Πρενς",-72.68,18.93,"",""],["Honduras","Honduras","Ονδούρα","Tegucigalpa","Τεγκουσιγκάλπα",3,"","",-86.62,14.83,"",""],["Hungary","Hungary","Ουγγαρία","Budapest","Βουδαπέστη",1,"","",19.38,47.17,"",""],["Iceland","Iceland","Ισλανδία","Reykjavík","Ρέικιαβικ",1,"Reykjavik","Ρέικιαβικ",-18.58,65,"",""],["India","India","Ινδία","New Delhi","Νέο Δελχί",1,"Delhi","Δελχί",79.53,22.8,"Mumbai|Μουμπάι",""],["Indonesia","Indonesia","Ινδονησία","Jakarta","Τζακάρτα",2,"Nusantara","Νουσαντάρα",114.01,-0.19,"",""],["Iran","Iran","Ιράν","Tehran","Τεχεράνη",1,"Teheran","",54.44,32.53,"",""],["Iraq","Iraq","Ιράκ","Baghdad","Βαγδάτη",1,"","",43.77,33.01,"",""],["Ireland","Ireland","Ιρλανδία","Dublin","Δουβλίνο",1,"Baile Átha Cliath","",-8.14,53.16,"",""],["Italy","Italy","Ιταλία","Rome","Ρώμη",1,"Roma","",12.3,43.49,"Milan|Μιλάνο",""],["Jamaica","Jamaica","Τζαμάικα","Kingston","Κίνγκστον",2,"","",-77.31,18.16,"",""],["Japan","Japan","Ιαπωνία","Tokyo","Τόκιο",1,"Tokio","",137.88,36.63,"",""],["Jordan","Jordan","Ιορδανία","Amman","Αμμάν",2,"","Αμάν",36.76,31.24,"",""],["Kazakhstan","Kazakhstan","Καζακστάν","Astana","Αστάνα",3,"Nur-Sultan|Nursultan","Νουρ-Σουλτάν",67.25,48.36,"Almaty|Αλμάτι",""],["Kenya","Kenya","Κένυα","Nairobi","Ναϊρόμπι",2,"","",37.8,0.6,"",""],["Kiribati","Kiribati","Κιριμπάτι","Tarawa","Ταράουα",3,"South Tarawa","",-157.37,1.85,"",""],["Kosovo","Kosovo","Κόσοβο","Pristina","Πρίστινα",2,"Prishtina","",20.87,42.57,"",""],["Kuwait","Kuwait","Κουβέιτ","Kuwait City","Πόλη του Κουβέιτ",2,"Kuwait","Κουβέιτ",47.56,29.32,"",""],["Kyrgyzstan","Kyrgyzstan","Κιργιζία","Bishkek","Μπισκέκ",3,"","",74.51,41.47,"",""],["Laos","Laos","Λάος","Vientiane","Βιεντιάν",3,"","",103.78,18.49,"",""],["Latvia","Latvia","Λετονία","Riga","Ρίγα",2,"","",24.92,56.86,"",""],["Lebanon","Lebanon","Λίβανος","Beirut","Βηρυτός",1,"Beyrouth","Βυρηττός",35.88,33.92,"",""],["Lesotho","Lesotho","Λεσότο","Maseru","Μασέρου",3,"","",28.23,-29.58,"",""],["Liberia","Liberia","Λιβερία","Monrovia","Μονρόβια",3,"","",-9.32,6.45,"",""],["Libya","Libya","Λιβύη","Tripoli","Τρίπολη",2,"","Τρίπολι",18.07,27.02,"",""],["Liechtenstein","Liechtenstein","Λιχτενστάιν","Vaduz","Βαντούζ",2,"","",9.54,47.14,"",""],["Lithuania","Lithuania","Λιθουανία","Vilnius","Βίλνιους",2,"","",23.9,55.32,"",""],["Luxembourg","Luxembourg","Λουξεμβούργο","Luxembourg","Λουξεμβούργο",1,"Luxembourg City","",6.07,49.77,"",""],["Macedonia","North Macedonia","Βόρεια Μακεδονία","Skopje","Σκόπια",1,"","",21.68,41.6,"",""],["Madagascar","Madagascar","Μαδαγασκάρη","Antananarivo","Ανταναναρίβο",3,"","",46.74,-19.32,"",""],["Malawi","Malawi","Μαλάουι","Lilongwe","Λιλόνγκουε",3,"","",34.28,-13.21,"",""],["Malaysia","Malaysia","Μαλαισία","Kuala Lumpur","Κουάλα Λουμπούρ",2,"Putrajaya","Πουτρατζάγια",114.72,3.62,"Singapore|Σιγκαπούρη",""],["Maldives","Maldives","Μαλδίβες","Malé","Μαλέ",3,"Male","",73.5,4.2,"",""],["Mali","Mali","Μάλι","Bamako","Μπαμάκο",3,"","",-3.59,17.32,"",""],["Malta","Malta","Μάλτα","Valletta","Βαλέτα",2,"Valetta","Βαλλέτα",14.44,35.89,"",""],["Marshall Is.","Marshall Islands","Νήσοι Μάρσαλ","Majuro","Ματζούρο",3,"","",171.19,7.11,"",""],["Mauritania","Mauritania","Μαυριτανία","Nouakchott","Νουακσότ",3,"","",-10.37,20.22,"",""],["Mauritius","Mauritius","Μαυρίκιος","Port Louis","Πορτ Λούις",3,"","",57.57,-20.28,"",""],["Mexico","Mexico","Μεξικό","Mexico City","Πόλη του Μεξικού",1,"Ciudad de México|Mexico","Μέξικο Σίτι",-102.15,23.92,"",""],["Micronesia","Micronesia","Μικρονησία","Palikir","Παλικίρ",3,"","",158.23,6.89,"",""],["Moldova","Moldova","Μολδαβία","Chișinău","Κισινάου",2,"Chisinau|Kishinev","Τσισινάου",28.47,47.19,"",""],["Monaco","Monaco","Μονακό","Monaco","Μονακό",2,"Monaco-Ville","",7.41,43.75,"",""],["Mongolia","Mongolia","Μογγολία","Ulaanbaatar","Ουλάν Μπατόρ",2,"Ulan Bator","",103.12,46.96,"",""],["Montenegro","Montenegro","Μαυροβούνιο","Podgorica","Ποντγκόριτσα",2,"","",19.24,42.79,"",""],["Morocco","Morocco","Μαρόκο","Rabat","Ραμπάτ",2,"","",-6.39,31.88,"Casablanca|Καζαμπλάνκα",""],["Mozambique","Mozambique","Μοζαμβίκη","Maputo","Μαπούτο",3,"","",35.6,-17.2,"",""],["Myanmar","Myanmar","Μιανμάρ","Naypyidaw","Νεπιντό",3,"Nay Pyi Taw","",96.49,21.15,"Yangon|Rangoon|Ρανγκούν",""],["Namibia","Namibia","Ναμίμπια","Windhoek","Βίντχουκ",3,"","",17.2,-22.07,"",""],["Nauru","Nauru","Ναουρού","Yaren","Γιαρέν",3,"","",166.93,-0.52,"",""],["Nepal","Nepal","Νεπάλ","Kathmandu","Κατμαντού",2,"Katmandu","",83.95,28.26,"",""],["Netherlands","Netherlands","Ολλανδία","Amsterdam","Άμστερνταμ",1,"The Hague|Den Haag","Χάγη",5.63,52.28,"",""],["New Zealand","New Zealand","Νέα Ζηλανδία","Wellington","Ουέλινγκτον",2,"","Γουέλινγκτον",170.61,-43.95,"Auckland|Όκλαντ",""],["Nicaragua","Nicaragua","Νικαράγουα","Managua","Μανάγκουα",3,"","",-85.03,12.85,"",""],["Niger","Niger","Νίγηρας","Niamey","Νιαμέι",3,"","",9.33,17.41,"",""],["Nigeria","Nigeria","Νιγηρία","Abuja","Αμπούτζα",2,"","",8.08,9.59,"Lagos|Λάγος",""],["North Korea","North Korea","Βόρεια Κορέα","Pyongyang","Πιονγκγιάνγκ",1,"","Πιονγιάνγκ",127.16,40.14,"",""],["Norway","Norway","Νορβηγία","Oslo","Όσλο",1,"","",12.16,63.79,"",""],["Oman","Oman","Ομάν","Muscat","Μασκάτ",3,"Masqat","",56.06,20.56,"",""],["Pakistan","Pakistan","Πακιστάν","Islamabad","Ισλαμαμπάντ",1,"","",69.17,29.88,"Karachi|Καράτσι",""],["Palau","Palau","Παλάου","Ngerulmud","Νγκερουλμούντ",3,"Melekeok","",134.58,7.51,"",""],["Panama","Panama","Παναμάς","Panama City","Πόλη του Παναμά",2,"Panama","Παναμάς",-80.11,8.53,"",""],["Papua New Guinea","Papua New Guinea","Παπούα Νέα Γουινέα","Port Moresby","Πορτ Μόρεσμπι",3,"","",144.23,-6.6,"",""],["Paraguay","Paraguay","Παραγουάη","Asunción","Ασουνσιόν",2,"Asuncion","",-58.44,-23.21,"",""],["Peru","Peru","Περού","Lima","Λίμα",2,"","",-74.42,-9.11,"",""],["Philippines","Philippines","Φιλιππίνες","Manila","Μανίλα",2,"","",121.42,15.95,"",""],["Poland","Poland","Πολωνία","Warsaw","Βαρσοβία",1,"Warszawa","",19.42,52.11,"",""],["Portugal","Portugal","Πορτογαλία","Lisbon","Λισαβόνα",1,"Lisboa","Λισσαβώνα",-7.98,39.65,"",""],["Qatar","Qatar","Κατάρ","Doha","Ντόχα",2,"","Ντόχα",51.18,25.3,"",""],["Romania","Romania","Ρουμανία","Bucharest","Βουκουρέστι",1,"București|Bucuresti","",24.98,45.85,"",""],["Russia","Russia","Ρωσία","Moscow","Μόσχα",1,"Moskva","",95.53,65.89,"",""],["Rwanda","Rwanda","Ρουάντα","Kigali","Κιγκάλι",3,"","",29.92,-1.99,"",""],["S. Sudan","South Sudan","Νότιο Σουδάν","Juba","Τζούμπα",3,"","",30.25,7.31,"",""],["Saint Lucia","Saint Lucia","Αγία Λουκία","Castries","Καστρίς",3,"","",-60.97,13.89,"",""],["Samoa","Samoa","Σαμόα","Apia","Απία",3,"","",-172.44,-13.63,"",""],["San Marino","San Marino","Άγιος Μαρίνος","San Marino","Άγιος Μαρίνος",3,"","Σαν Μαρίνο",12.46,43.94,"",""],["Saudi Arabia","Saudi Arabia","Σαουδική Αραβία","Riyadh","Ριάντ",2,"Riyad","",44.67,24.09,"",""],["Senegal","Senegal","Σενεγάλη","Dakar","Ντακάρ",2,"","",-14.47,14.36,"",""],["Serbia","Serbia","Σερβία","Belgrade","Βελιγράδι",1,"Beograd","",20.81,44.21,"",""],["Seychelles","Seychelles","Σεϋχέλλες","Victoria","Βικτόρια",3,"","",55.48,-4.66,"",""],["Sierra Leone","Sierra Leone","Σιέρα Λεόνε","Freetown","Φρίταουν",3,"","",-11.79,8.57,"",""],["Singapore","Singapore","Σιγκαπούρη","Singapore","Σιγκαπούρη",1,"Singapore City","",103.82,1.36,"",""],["Slovakia","Slovakia","Σλοβακία","Bratislava","Μπρατισλάβα",2,"","",19.47,48.71,"",""],["Slovenia","Slovenia","Σλοβενία","Ljubljana","Λιουμπλιάνα",2,"","",14.8,46.12,"",""],["Solomon Is.","Solomon Islands","Νήσοι Σολομώντα","Honiara","Χονιάρα",3,"","",160.17,-9.62,"",""],["Somalia","Somalia","Σομαλία","Mogadishu","Μογκαντίσου",2,"Muqdisho","",45.68,4.74,"",""],["South Africa","South Africa","Νότια Αφρική","Pretoria","Πρετόρια",2,"Cape Town|Bloemfontein","Κέιπ Τάουν|Μπλουμφοντέιν",25.19,-28.97,"Johannesburg|Γιοχάνεσμπουργκ","SA3"],["South Korea","South Korea","Νότια Κορέα","Seoul","Σεούλ",1,"","",127.87,36.45,"",""],["Spain","Spain","Ισπανία","Madrid","Μαδρίτη",1,"","",-3.57,40.37,"Barcelona|Βαρκελώνη",""],["Sri Lanka","Sri Lanka","Σρι Λάνκα","Sri Jayawardenepura Kotte","Σρι Τζαγιαβαρντενεπούρα Κότε",3,"Kotte|Colombo","Κολόμπο",80.7,7.61,"",""],["St. Kitts and Nevis","Saint Kitts and Nevis","Άγιος Χριστόφορος και Νέβις","Basseterre","Μπαστέρ",3,"","",-62.75,17.33,"",""],["St. Vin. and Gren.","Saint Vincent and the Grenadines","Άγιος Βικέντιος και Γρεναδίνες","Kingstown","Κίνγκσταουν",3,"","",-61.2,13.25,"",""],["Sudan","Sudan","Σουδάν","Khartoum","Χαρτούμ",2,"","",29.91,15.97,"",""],["Suriname","Suriname","Σουρινάμ","Paramaribo","Παραμαρίμπο",3,"","",-55.91,4.13,"",""],["Sweden","Sweden","Σουηδία","Stockholm","Στοκχόλμη",1,"","",16.25,62.43,"",""],["Switzerland","Switzerland","Ελβετία","Bern","Βέρνη",2,"Berne","",8.21,46.8,"Zurich|Ζυρίχη",""],["Syria","Syria","Συρία","Damascus","Δαμασκός",1,"Dimashq","",38.49,35.02,"",""],["São Tomé and Principe","São Tomé and Príncipe","Σάο Τομέ και Πρίνσιπε","São Tomé","Σάο Τομέ",3,"Sao Tome","",6.61,0.24,"",""],["Taiwan","Taiwan","Ταϊβάν","Taipei","Ταϊπέι",1,"Taipeh","",120.96,23.75,"",""],["Tajikistan","Tajikistan","Τατζικιστάν","Dushanbe","Ντουσανμπέ",3,"","",71.03,38.53,"",""],["Tanzania","Tanzania","Τανζανία","Dodoma","Ντοντόμα",3,"","",34.79,-6.27,"Dar es Salaam|Νταρ ες Σαλάμ",""],["Thailand","Thailand","Ταϊλάνδη","Bangkok","Μπανγκόκ",1,"Krung Thep","",101,15.1,"",""],["Timor-Leste","Timor-Leste","Ανατολικό Τιμόρ","Dili","Ντίλι",3,"","",125.92,-8.81,"",""],["Togo","Togo","Τόγκο","Lomé","Λομέ",3,"Lome","",0.96,8.52,"",""],["Tonga","Tonga","Τόνγκα","Nuku'alofa","Νουκουαλόφα",3,"Nukualofa","",-175.22,-21.17,"",""],["Trinidad and Tobago","Trinidad and Tobago","Τρινιντάντ και Τομπάγκο","Port of Spain","Πορτ οφ Σπέιν",3,"Port-of-Spain","",-61.29,10.42,"",""],["Tunisia","Tunisia","Τυνησία","Tunis","Τύνιδα",2,"","Τούνις",9.55,34.09,"",""],["Turkey","Turkey","Τουρκία","Ankara","Άγκυρα",1,"","",35.41,39.06,"Istanbul|Κωνσταντινούπολη",""],["Turkmenistan","Turkmenistan","Τουρκμενιστάν","Ashgabat","Ασχαμπάτ",3,"Asgabat","",59.45,39.13,"",""],["Uganda","Uganda","Ουγκάντα","Kampala","Καμπάλα",3,"","",32.37,1.27,"",""],["Ukraine","Ukraine","Ουκρανία","Kyiv","Κίεβο",1,"Kiev","",31.32,49.2,"",""],["United Arab Emirates","United Arab Emirates","Ηνωμένα Αραβικά Εμιράτα","Abu Dhabi","Άμπου Ντάμπι",2,"Abudhabi","",54.3,23.9,"",""],["United Kingdom","United Kingdom","Ηνωμένο Βασίλειο","London","Λονδίνο",1,"","",-2.41,53.83,"",""],["United States of America","United States","Ηνωμένες Πολιτείες","Washington, D.C.","Ουάσιγκτον",1,"Washington|Washington DC","Ουάσινγκτον",-98.82,39.89,"New York|Νέα Υόρκη",""],["Uruguay","Uruguay","Ουρουγουάη","Montevideo","Μοντεβιδέο",2,"","",-56.03,-32.79,"",""],["Uzbekistan","Uzbekistan","Ουζμπεκιστάν","Tashkent","Τασκένδη",3,"Toshkent","Τασκέντη",63.29,41.78,"",""],["Vanuatu","Vanuatu","Βανουάτου","Port Vila","Πορτ Βίλα",3,"","",166.85,-15.23,"",""],["Venezuela","Venezuela","Βενεζουέλα","Caracas","Καράκας",2,"","",-66.18,7.12,"",""],["Vietnam","Vietnam","Βιετνάμ","Hanoi","Ανόι",2,"Ha Noi","Χανόι",106.35,16.55,"Ho Chi Minh City|Χο Τσι Μινχ",""],["Yemen","Yemen","Υεμένη","Sanaa","Σαναά",3,"Sana'a|Sana","",47.52,15.94,"",""],["Zambia","Zambia","Ζάμπια","Lusaka","Λουσάκα",3,"","",27.81,-13.46,"",""],["Zimbabwe","Zimbabwe","Ζιμπάμπουε","Harare","Χαράρε",3,"Salisbury","",29.85,-19,"",""],["eSwatini","Eswatini","Εσουατίνι","Mbabane","Μπαμπάνε",3,"Lobamba","Λομπάμπα",31.48,-26.56,"",""]];
+</script>
+<script>
+(function () {
+  "use strict";
+
+  const STR = {
+    en: {
+      tagline: "World capitals",
+      lblAnswer: "How do you want to answer?", ansChoice: "Multiple choice", ansType: "Type the answer",
+      lblDiff: "Difficulty", dEasy: "Easy", dMod: "Moderate", dAll: "All capitals",
+      m10: "Quick", m10d: "10 random countries",
+      m20: "Classic", m20d: "20 random countries",
+      mMara: "Marathon", maraD: n => "All " + n + " countries in one round",
+      mSurv: "Survival ∞", mSurvD: "Play until your first mistake. Best: ",
+      qlabel: "What is the capital of",
+      score: "Score", question: "Question", streakLbl: "Streak", streak: "Best streak",
+      endGame: "End game", submit: "Check", placeholder: "Type the capital…",
+      correct: "Correct", wrongIs: c => "The capital is " + c,
+      results: "Results", gameOver: "Game over!", accuracy: "Accuracy", avgTime: "Avg. time",
+      perfect: "Perfect round! 🏆", excellent: "Excellent!", good: "Good effort!", keep: "Keep studying the atlas!",
+      newHi: "🏆 New best!", hi: "Best: ",
+      mistakes: "Mistakes", mLine: (c, y, a) => "<b>" + c + "</b> — you said <span class='yours'>" + y + "</span>, it's " + a,
+      noAnswer: "(no answer)",
+      again: "Play again", change: "Change mode",
+      allGames: "← All games", copyright: "© 2026 Borderline"
+    },
+    el: {
+      tagline: "Πρωτεύουσες του κόσμου",
+      lblAnswer: "Πώς θέλεις να απαντάς;", ansChoice: "Πολλαπλή επιλογή", ansType: "Πληκτρολόγηση",
+      lblDiff: "Δυσκολία", dEasy: "Εύκολο", dMod: "Μέτριο", dAll: "Όλες οι πρωτεύουσες",
+      m10: "Γρήγορο", m10d: "10 τυχαίες χώρες",
+      m20: "Κλασικό", m20d: "20 τυχαίες χώρες",
+      mMara: "Μαραθώνιος", maraD: n => "Όλες οι " + n + " χώρες σε έναν γύρο",
+      mSurv: "Επιβίωση ∞", mSurvD: "Παίξε μέχρι το πρώτο λάθος. Ρεκόρ: ",
+      qlabel: "Ποια είναι η πρωτεύουσα της χώρας",
+      score: "Σκορ", question: "Ερώτηση", streakLbl: "Σερί", streak: "Καλύτερο σερί",
+      endGame: "Τερματισμός", submit: "Έλεγχος", placeholder: "Γράψε την πρωτεύουσα…",
+      correct: "Σωστά", wrongIs: c => "Η πρωτεύουσα είναι " + c,
+      results: "Αποτελέσματα", gameOver: "Τέλος παιχνιδιού!", accuracy: "Ακρίβεια", avgTime: "Μέσος χρόνος",
+      perfect: "Τέλειος γύρος! 🏆", excellent: "Εξαιρετικά!", good: "Καλή προσπάθεια!", keep: "Συνέχισε τη μελέτη!",
+      newHi: "🏆 Νέο ρεκόρ!", hi: "Ρεκόρ: ",
+      mistakes: "Λάθη", mLine: (c, y, a) => "<b>" + c + "</b> — απάντησες <span class='yours'>" + y + "</span>, σωστό: " + a,
+      noAnswer: "(καμία απάντηση)",
+      again: "Παίξε ξανά", change: "Αλλαγή λειτουργίας",
+      allGames: "← Όλα τα παιχνίδια", copyright: "© 2026 Borderline"
+    }
+  };
+  let lang = "en";
+  try { lang = localStorage.getItem("geoquiz-lang") || "en"; } catch (e) {}
+  if (!STR[lang]) lang = "en";
+  const t = k => STR[lang][k];
+
+  // data columns: 0 key, 1 nameEn, 2 nameEl, 3 capEn, 4 capEl, 5 tier,
+  //               6 altsEn, 7 altsEl, 8 lon, 9 lat, 10 traps (never accepted), 11 noteKey
+  const NAME = c => lang === "el" ? c[2] : c[1];
+  const CAPITAL = c => lang === "el" ? c[4] : c[3];
+  const NOTES = {
+    SA3: {
+      en: "South Africa has three capitals — Pretoria (executive), Cape Town (legislative) and Bloemfontein (judicial). All three are accepted.",
+      el: "Η Νότια Αφρική έχει τρεις πρωτεύουσες — Πρετόρια (εκτελεστική), Κέιπ Τάουν (νομοθετική) και Μπλουμφοντέιν (δικαστική). Και οι τρεις γίνονται δεκτές."
+    }
+  };
+  const noteFor = c => (c[11] && NOTES[c[11]]) ? NOTES[c[11]][lang] || NOTES[c[11]].en : "";
+
+  let answerMode = "choice", difficulty = "all", mode = null;
+  try {
+    answerMode = localStorage.getItem("cap-answer") || "choice";
+    difficulty = localStorage.getItem("cap-diff") || "all";
+  } catch (e) {}
+  let hiScore = 0;
+  try { hiScore = +(localStorage.getItem("cap-hiscore") || 0); } catch (e) {}
+
+  const poolFor = d => d === "easy" ? CAPDATA.filter(c => c[5] === 1)
+    : d === "moderate" ? CAPDATA.filter(c => c[5] <= 2) : CAPDATA.slice();
+
+  let queue = [], target = null, score = 0, asked = 0, streak = 0, bestStreak = 0,
+      total = 0, locked = false, qStart = 0, answers = [];
+
+  function show(id) {
+    document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
+    document.getElementById(id).classList.add("active");
+  }
+  function shuffle(a) {
+    a = a.slice();
+    for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
+    return a;
+  }
+  const norm = s => (s || "").toLowerCase()
+    .normalize("NFD").replace(/[̀-ͯ]/g, "")   // strip accents, incl. Greek tonos
+    .replace(/[^a-zα-ω0-9]/g, "");                       // strip spaces & punctuation
+  function lev(a, b) {
+    const m = a.length, n = b.length;
+    if (Math.abs(m - n) > 1) return 2;
+    const dp = Array.from({ length: m + 1 }, (_, i) => [i, ...Array(n).fill(0)]);
+    for (let j = 0; j <= n; j++) dp[0][j] = j;
+    for (let i = 1; i <= m; i++) for (let j = 1; j <= n; j++)
+      dp[i][j] = Math.min(dp[i-1][j] + 1, dp[i][j-1] + 1, dp[i-1][j-1] + (a[i-1] === b[j-1] ? 0 : 1));
+    return dp[m][n];
+  }
+  function accepted(c) {
+    const list = [c[3], c[4]];
+    (c[6] || "").split("|").forEach(x => x && list.push(x));
+    (c[7] || "").split("|").forEach(x => x && list.push(x));
+    return list.map(norm).filter(Boolean);
+  }
+  function isCorrectTyped(c, input) {
+    const g = norm(input);
+    if (!g) return false;
+    const ok = accepted(c);
+    if (ok.includes(g)) return true;
+    // forgive a single typo on longer names
+    return ok.some(a => a.length >= 6 && lev(a, g) <= 1);
+  }
+  // decoys: the country's own "tempting wrong answer" (Lagos for Nigeria) if it has one,
+  // then geographically nearest countries' capitals — plausible, never absurd
+  function decoysFor(c) {
+    const traps = (c[10] || "").split("|").filter(Boolean);
+    const trap = traps.length ? [lang === "el" && traps[1] ? traps[1] : traps[0]] : [];
+    const others = CAPDATA.filter(x => x[0] !== c[0] && CAPITAL(x) !== CAPITAL(c));
+    const near = others.map(x => {
+      const dx = (x[8] - c[8]) * Math.cos((x[9] + c[9]) / 2 * Math.PI / 180), dy = x[9] - c[9];
+      return { x, d: dx * dx + dy * dy };
+    }).sort((a, b) => a.d - b.d).slice(0, 12).map(s => CAPITAL(s.x));
+    // never offer an answer that would also be accepted (e.g. Cape Town for South Africa)
+    const alsoRight = accepted(c);
+    const uniq = [];
+    for (const label of trap.concat(shuffle(near)))
+      if (label !== CAPITAL(c) && !alsoRight.includes(norm(label)) && !uniq.includes(label)) uniq.push(label);
+    return uniq.slice(0, 3);
+  }
+
+  function applyLang() {
+    document.documentElement.lang = lang;
+    document.querySelectorAll("[data-i18n]").forEach(el => {
+      const v = STR[lang][el.dataset.i18n];
+      if (typeof v === "string") el.textContent = v;
+    });
+    document.querySelectorAll(".lang-btn").forEach(b => b.classList.toggle("active", b.dataset.lang === lang));
+    refreshMenu();
+    if (target) renderQuestion();
+  }
+  function refreshMenu() {
+    const counts = { easy: poolFor("easy").length, moderate: poolFor("moderate").length, all: CAPDATA.length };
+    const labels = { easy: t("dEasy"), moderate: t("dMod"), all: t("dAll") };
+    document.querySelectorAll("#diff-row .pill").forEach(b => {
+      b.querySelector(".dl").textContent = labels[b.dataset.diff];
+      b.querySelector(".cnt").textContent = "· " + counts[b.dataset.diff];
+      b.classList.toggle("active", b.dataset.diff === difficulty);
+    });
+    document.querySelectorAll("#answer-row .pill").forEach(b =>
+      b.classList.toggle("active", b.dataset.answer === answerMode));
+    document.getElementById("mara-desc").textContent = t("maraD")(counts[difficulty]);
+    document.getElementById("hiscore").textContent = hiScore;
+  }
+
+  document.querySelectorAll(".lang-btn").forEach(b => b.addEventListener("click", () => {
+    lang = b.dataset.lang;
+    try { localStorage.setItem("geoquiz-lang", lang); } catch (e) {}
+    applyLang();
+  }));
+  document.querySelectorAll("#diff-row .pill").forEach(b => b.addEventListener("click", () => {
+    difficulty = b.dataset.diff;
+    try { localStorage.setItem("cap-diff", difficulty); } catch (e) {}
+    refreshMenu();
+  }));
+  document.querySelectorAll("#answer-row .pill").forEach(b => b.addEventListener("click", () => {
+    answerMode = b.dataset.answer;
+    try { localStorage.setItem("cap-answer", answerMode); } catch (e) {}
+    refreshMenu();
+  }));
+  document.querySelectorAll(".mode-btn").forEach(b =>
+    b.addEventListener("click", () => startGame(b.dataset.mode)));
+
+  function startGame(m) {
+    mode = m;
+    const pool = poolFor(difficulty);
+    queue = shuffle(pool);
+    total = m === "survival" ? 0 : m === "marathon" ? pool.length : Math.min(+m, pool.length);
+    score = 0; asked = 0; streak = 0; bestStreak = 0; answers = [];
+    show("play-screen");
+    nextQuestion();
+  }
+
+  function nextQuestion() {
+    if (mode !== "survival" && asked >= total) return endGame(false);
+    if (!queue.length) return endGame(false);
+    target = queue.pop();
+    locked = false;
+    renderQuestion();
+    document.getElementById("verdict").textContent = "";
+    document.getElementById("verdict").className = "verdict";
+    qStart = performance.now();
+  }
+
+  function renderQuestion() {
+    document.getElementById("q-country").textContent = NAME(target);
+    document.getElementById("score").textContent = score;
+    document.getElementById("streak").textContent = bestStreak;
+    document.getElementById("progress-label").textContent = t(mode === "survival" ? "streakLbl" : "question");
+    document.getElementById("progress").textContent =
+      mode === "survival" ? streak : Math.min(asked + 1, total) + " / " + total;
+    const area = document.getElementById("answer-area");
+    area.innerHTML = "";
+    if (answerMode === "choice") {
+      const right = CAPITAL(target);
+      const opts = shuffle([right].concat(decoysFor(target)));
+      const grid = document.createElement("div");
+      grid.className = "choices";
+      opts.forEach(label => {
+        const b = document.createElement("button");
+        b.className = "choice";
+        b.textContent = label;
+        b.addEventListener("click", () => answerChoice(b, label, grid));
+        grid.appendChild(b);
+      });
+      area.appendChild(grid);
+    } else {
+      const wrap = document.createElement("div");
+      wrap.className = "type-wrap";
+      const inp = document.createElement("input");
+      inp.type = "text"; inp.id = "answer-input"; inp.autocomplete = "off";
+      inp.autocapitalize = "words"; inp.placeholder = t("placeholder");
+      const btn = document.createElement("button");
+      btn.id = "submit-btn"; btn.textContent = t("submit");
+      const go = () => answerTyped(inp.value, inp, btn);
+      btn.addEventListener("click", go);
+      inp.addEventListener("keydown", e => { if (e.key === "Enter") go(); });
+      wrap.appendChild(inp); wrap.appendChild(btn);
+      area.appendChild(wrap);
+      setTimeout(() => inp.focus(), 30);
+    }
+  }
+
+  function record(correct, given) {
+    const ms = Math.round(performance.now() - qStart);
+    answers.push({ c: target, correct, given, ms });
+    asked++;
+    if (correct) { score++; streak++; bestStreak = Math.max(bestStreak, streak); }
+    else streak = 0;
+    document.getElementById("score").textContent = score;
+    document.getElementById("streak").textContent = bestStreak;
+  }
+
+  function verdict(correct) {
+    const v = document.getElementById("verdict");
+    v.className = "verdict " + (correct ? "good" : "bad");
+    const note = noteFor(target);
+    v.innerHTML = (correct ? "✓ " + t("correct") + (note ? " *" : "")
+      : t("wrongIs")("<b>" + CAPITAL(target) + "</b>") + (note ? " *" : "")) +
+      (note ? "<span class='sub'>* " + note + "</span>" : "");
+  }
+
+  function answerChoice(btn, chosenLabel, grid) {
+    if (locked) return;
+    locked = true;
+    // accept the canonical answer or any legitimate alternative capital
+    const correct = chosenLabel === CAPITAL(target) || accepted(target).includes(norm(chosenLabel));
+    record(correct, chosenLabel);
+    grid.querySelectorAll(".choice").forEach(b => {
+      b.disabled = true;
+      if (b.textContent === CAPITAL(target)) b.classList.add("right");
+    });
+    if (!correct) btn.classList.add("wrong");
+    verdict(correct);
+    const pause = noteFor(target) ? 3200 : (correct ? 800 : 1700);
+    setTimeout(() => { if (mode === "survival" && !correct) endGame(true); else nextQuestion(); }, pause);
+  }
+
+  function answerTyped(value, inp, btn) {
+    if (locked) return;
+    locked = true;
+    const correct = isCorrectTyped(target, value);
+    record(correct, value.trim() || t("noAnswer"));
+    inp.disabled = true; btn.disabled = true;
+    inp.style.borderColor = correct ? "var(--good)" : "var(--bad)";
+    verdict(correct);
+    const pause = noteFor(target) ? 3400 : (correct ? 800 : 1900);
+    setTimeout(() => { if (mode === "survival" && !correct) endGame(true); else nextQuestion(); }, pause);
+  }
+
+  document.getElementById("quit-btn").addEventListener("click", () => endGame(false));
+
+  function endGame(died) {
+    target = null;
+    const n = answers.length;
+    const correctCount = answers.filter(a => a.correct).length;
+    const avg = n ? answers.reduce((s, a) => s + a.ms, 0) / n : 0;
+    document.getElementById("results-title").textContent = mode === "survival" && died ? t("gameOver") : t("results");
+    document.getElementById("final-score").textContent = mode === "survival" ? correctCount : correctCount + " / " + n;
+    document.getElementById("r-accuracy").textContent = n ? Math.round(100 * correctCount / n) + "%" : "—";
+    document.getElementById("r-time").textContent = n ? (avg / 1000).toFixed(1) + "s" : "—";
+    document.getElementById("r-streak").textContent = bestStreak;
+    let sub;
+    if (mode === "survival") {
+      if (correctCount > hiScore) {
+        hiScore = correctCount;
+        try { localStorage.setItem("cap-hiscore", String(hiScore)); } catch (e) {}
+        sub = t("newHi");
+      } else sub = t("hi") + hiScore;
+    } else {
+      const p = n ? correctCount / n : 0;
+      sub = p === 1 ? t("perfect") : p >= 0.8 ? t("excellent") : p >= 0.5 ? t("good") : t("keep");
+    }
+    document.getElementById("final-sub").textContent = sub;
+    const wrong = answers.filter(a => !a.correct);
+    const box = document.getElementById("mistakes");
+    if (wrong.length) {
+      box.style.display = "block";
+      box.innerHTML = "<div style='color:var(--ink);font-weight:600;padding-bottom:4px'>" + t("mistakes") + "</div>" +
+        wrong.map(a => "<div>" + t("mLine")(NAME(a.c), a.given, CAPITAL(a.c)) + "</div>").join("");
+    } else box.style.display = "none";
+    show("results-screen");
+  }
+
+  document.getElementById("again-btn").addEventListener("click", () => startGame(mode));
+  document.getElementById("menu-btn").addEventListener("click", () => { refreshMenu(); show("menu-screen"); });
+
+  applyLang();
+})();
+</script>
+</body>
+</html>
