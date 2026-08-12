@@ -67,7 +67,6 @@
     background: #fff; padding: 20px 22px;
     transition: transform 0.12s, box-shadow 0.12s, border-color 0.12s;
   }
-  .game:hover { transform: translateY(-2px); border-color: var(--crimson); box-shadow: 0 4px 16px rgba(165,0,33,0.15); }
   .game-top { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
   .game h2 { font-family: var(--serif); font-weight: 700; font-size: 24px; letter-spacing: -0.3px; }
   .game p { font-size: 14px; color: var(--muted); margin-top: 4px; line-height: 1.5; }
@@ -80,7 +79,6 @@
   .game.daily h2 { color: var(--butter); }
   .game.daily p { color: #C9C2B8; }
   .game.daily .tag { background: var(--crimson); color: var(--butter); border-color: var(--crimson); }
-  .game.daily:hover { border-color: var(--marigold); box-shadow: 0 4px 16px rgba(0,33,71,0.25); }
   .game.soon { opacity: 0.55; cursor: default; border-style: dashed; }
   .game.soon:hover { transform: none; border-color: var(--ink); box-shadow: none; }
 
@@ -89,12 +87,17 @@
     display: flex; gap: 8px; align-items: center; flex-wrap: wrap; justify-content: center;
   }
   footer a { color: var(--crimson); text-decoration: none; border-bottom: 1px solid transparent; }
-  footer a:hover { border-bottom-color: var(--crimson); }
   footer .dot { opacity: 0.5; }
   @media (max-width: 620px) {
     body { padding-top: 62px; }
     .game { padding: 16px 18px; }
     .game h2 { font-size: 20px; }
+  }
+  /* hover only where a real pointer exists — on touch, :hover sticks after a tap */
+  @media (hover: hover) and (pointer: fine) {
+    footer a:hover { border-bottom-color: var(--crimson); }
+    .game:hover { transform: translateY(-2px); border-color: var(--crimson); box-shadow: 0 4px 16px rgba(165,0,33,0.15); }
+    .game.daily:hover { border-color: var(--marigold); box-shadow: 0 4px 16px rgba(0,33,71,0.25); }
   }
 </style>
 </head>

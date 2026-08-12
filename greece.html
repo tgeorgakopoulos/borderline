@@ -82,7 +82,6 @@
   .mode-grid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 12px; margin-bottom: 18px; }
   .mode-btn { border: 2px solid var(--ink); background: #fff; border-radius: 10px; padding: 16px 14px;
     cursor: pointer; text-align: left; font-family: inherit; transition: border-color .15s, box-shadow .15s, transform .1s; }
-  .mode-btn:hover { border-color: var(--crimson); box-shadow: 0 3px 12px rgba(165,0,33,.16); transform: translateY(-1px); }
   .mode-btn .m-title { font-family: var(--serif); font-size: 19px; font-weight: 600; margin-bottom: 3px; }
   .mode-btn .m-desc { font-size: 13px; color: var(--muted); }
   .mode-btn[data-mode="survival"] { background: var(--crimson); border-color: var(--crimson); }
@@ -101,17 +100,21 @@
     padding: 12px 22px; font-size: 15px; cursor: pointer; font-family: inherit; }
   .ghost-btn { background: #fff; color: var(--ink); border: 1.5px solid var(--line); border-radius: 10px;
     padding: 12px 22px; font-size: 15px; cursor: pointer; font-family: inherit; }
-  .ghost-btn:hover { border-color: var(--ink); }
   .colophon { margin-top: 26px; font-size: 12px; color: var(--muted); display: flex; gap: 8px;
     justify-content: center; align-items: center; flex-wrap: wrap; }
   .colophon a { color: var(--crimson); text-decoration: none; }
-  .colophon a:hover { text-decoration: underline; }
   .colophon .dot { opacity: .5; }
   #loading { color: var(--muted); font-size: 16px; }
   @media (max-width: 620px) {
     #lang-toggle { top: 10px; right: 10px; }
     .lang-btn { padding: 6px 11px; font-size: 12px; }
     .screen .panel { padding-top: 66px; }
+  }
+  /* hover only where a real pointer exists — on touch, :hover sticks after a tap */
+  @media (hover: hover) and (pointer: fine) {
+    .colophon a:hover { text-decoration: underline; }
+    .mode-btn:hover { border-color: var(--crimson); box-shadow: 0 3px 12px rgba(165,0,33,.16); transform: translateY(-1px); }
+    .ghost-btn:hover { border-color: var(--ink); }
   }
 </style>
 </head>

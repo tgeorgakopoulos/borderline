@@ -85,7 +85,6 @@
     font-size: 13px;
     cursor: pointer;
   }
-  #quit-btn:hover { border-color: var(--muted); color: var(--ink); }
 
   /* ---------- Language toggle ---------- */
   #lang-toggle {
@@ -134,7 +133,6 @@
     cursor: pointer;
     transition: fill 0.12s;
   }
-  .country:hover, .territory:hover { fill: var(--hover); }
   .territory.mute { pointer-events: none; }
   .lake {
     fill: var(--sea);
@@ -151,7 +149,6 @@
     cursor: pointer;
     transition: fill 0.12s;
   }
-  .marker:hover { fill: var(--hover); }
   .flash-good { fill: var(--good-soft) !important; stroke: var(--good) !important; }
   .flash-bad  { fill: var(--bad-soft) !important; stroke: var(--bad) !important; }
   .reveal { fill: var(--good-soft) !important; stroke: var(--good) !important; animation: pulse 0.7s ease-in-out 2; }
@@ -175,7 +172,6 @@
     cursor: pointer;
     box-shadow: 0 1px 3px rgba(0,0,0,0.08);
   }
-  #zoom-controls button:hover { background: #f1f5f9; }
 
   #toast {
     position: absolute;
@@ -252,11 +248,6 @@
     text-align: left;
     transition: border-color 0.15s, box-shadow 0.15s, transform 0.1s;
   }
-  .mode-btn:hover {
-    border-color: var(--crimson);
-    box-shadow: 0 3px 12px rgba(165,0,33,0.16);
-    transform: translateY(-1px);
-  }
   .mode-btn .m-title {
     font-family: var(--serif);
     font-size: 19px;
@@ -266,7 +257,6 @@
   }
   .mode-btn .m-desc { font-size: 13px; color: var(--muted); }
   .mode-btn[data-mode="survival"] { background: var(--crimson); border-color: var(--crimson); }
-  .mode-btn[data-mode="survival"]:hover { border-color: var(--ink); }
   .mode-btn[data-mode="survival"] .m-title { color: var(--butter); }
   .mode-btn[data-mode="survival"] .m-desc { color: var(--paper); }
   #diff-row {
@@ -305,7 +295,6 @@
   }
   .colophon .dot { opacity: 0.5; }
   .colophon a { color: var(--crimson); text-decoration: none; border-bottom: 1px solid transparent; }
-  .colophon a:hover { border-bottom-color: var(--crimson); }
 
   /* ---------- Results ---------- */
   #results-panel h1 { margin-bottom: 2px; }
@@ -339,11 +328,25 @@
     cursor: pointer;
   }
   .primary-btn { background: var(--ink); color: var(--paper); border: none; font-family: inherit; }
-  .primary-btn:hover { background: #01162F; }
   .ghost-btn { background: #fff; color: var(--ink); border: 1.5px solid var(--line); font-family: inherit; }
-  .ghost-btn:hover { border-color: var(--ink); }
 
   #loading { color: var(--muted); font-size: 16px; }
+  /* hover only where a real pointer exists — on touch, :hover sticks after a tap */
+  @media (hover: hover) and (pointer: fine) {
+    .mode-btn:hover {
+    border-color: var(--crimson);
+    box-shadow: 0 3px 12px rgba(165,0,33,0.16);
+    transform: translateY(-1px);
+  }
+    .mode-btn[data-mode="survival"]:hover { border-color: var(--ink); }
+    .colophon a:hover { border-bottom-color: var(--crimson); }
+    .primary-btn:hover { background: #01162F; }
+    .country:hover, .territory:hover { fill: var(--hover); }
+    .marker:hover { fill: var(--hover); }
+    #zoom-controls button:hover { background: #f1f5f9; }
+    #quit-btn:hover { border-color: var(--muted); color: var(--ink); }
+    .ghost-btn:hover { border-color: var(--ink); }
+  }
 </style>
 </head>
 <body>

@@ -111,11 +111,8 @@
     border-radius: 10px; padding: 12px 22px; font-size: 15px; cursor: pointer; font-family: inherit;
   }
   .primary-btn { background: var(--ink); color: var(--paper); border: none; }
-  .primary-btn:hover { background: #01162F; }
   .ghost-btn { background: #fff; color: var(--ink); border: 1.5px solid var(--line); }
-  .ghost-btn:hover { border-color: var(--ink); }
   .mini-btn { padding: 4px 10px; font-size: 13px; background: #fff; border: 1px solid var(--line); border-radius: 7px; color: var(--ink); }
-  .mini-btn:hover { border-color: var(--crimson); color: var(--crimson); }
   .btn-row { display: flex; gap: 10px; justify-content: center; margin-top: 8px; flex-wrap: wrap; }
   .note { font-size: 12.5px; color: var(--muted); margin-top: 18px; }
   .admin-wide { max-width: 780px; }
@@ -129,11 +126,8 @@
     font-size: 12.5px; color: var(--muted); padding: 4px 7px; border-radius: 6px;
     white-space: nowrap; transition: background 0.12s, color 0.12s;
   }
-  .act:hover { background: #fff; color: var(--ink); }
   .act-strong { color: var(--ink); font-weight: 500; }
-  .act-strong:hover { background: var(--hover); }
   .act-danger { color: #B9AFA2; font-size: 16px; line-height: 1; padding: 3px 8px; }
-  .act-danger:hover { background: var(--bad-soft); color: var(--crimson); }
   .act-sep { width: 1px; height: 14px; background: var(--line); margin: 0 5px; display: inline-block; }
   @media (max-width: 720px) {
     .act { padding: 4px 5px; font-size: 12px; }
@@ -145,7 +139,6 @@
   #c-list li { display: flex; align-items: center; gap: 8px; padding: 5px 10px; border-bottom: 1px solid #ECE7DC; font-size: 14px; }
   #c-list li .cname { flex: 1; }
   #c-list li button { border: none; background: none; cursor: pointer; color: var(--muted); font-size: 14px; padding: 2px 5px; }
-  #c-list li button:hover { color: var(--crimson); }
   .cq-row { display: flex; gap: 8px; margin-bottom: 8px; }
   .cq-row input { flex: 1; padding: 7px 10px; border: 1.5px solid var(--line); border-radius: 8px; font-size: 14px; font-family: inherit; }
   .inline-add { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
@@ -178,6 +171,16 @@
     #ui-lang-toggle { top: 10px; right: 10px; }
     .uilang-btn { padding: 6px 11px; font-size: 12px; }
     .screen .panel { padding-top: 66px; }
+  }
+  /* hover only where a real pointer exists — on touch, :hover sticks after a tap */
+  @media (hover: hover) and (pointer: fine) {
+    .primary-btn:hover { background: #01162F; }
+    .ghost-btn:hover { border-color: var(--ink); }
+    .mini-btn:hover { border-color: var(--crimson); color: var(--crimson); }
+    .act:hover { background: #fff; color: var(--ink); }
+    .act-strong:hover { background: var(--hover); }
+    .act-danger:hover { background: var(--bad-soft); color: var(--crimson); }
+    #c-list li button:hover { color: var(--crimson); }
   }
 </style>
 </head>
