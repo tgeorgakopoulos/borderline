@@ -399,7 +399,7 @@
       <p class="colophon">
         <a href="index.html" data-i18n="allGames">← All games</a>
         <span class="dot">·</span>
-        <span data-i18n="copyright">© 2026 Borderline</span>
+        <span data-i18n="copyright">© 2026 Social Capital - Borderline</span>
         <span class="dot">·</span>
         <a href="research.html" data-i18n="researchLink">For researchers</a>
       </p>
@@ -435,7 +435,7 @@
     en: {
       tagline: "Find every country",
       hint: "Tiny island nations appear as circles — pinch or scroll to zoom.",
-      copyright: "© 2026 Borderline",
+      copyright: "© 2026 Social Capital - Borderline",
       researchLink: "For researchers",
       allGames: "← All games",
       loading: "Loading world map…",
@@ -461,7 +461,7 @@
     el: {
       tagline: "Βρες κάθε χώρα",
       hint: "Τα μικροσκοπικά νησιωτικά κράτη εμφανίζονται ως κύκλοι.",
-      copyright: "© 2026 Borderline",
+      copyright: "© 2026 Social Capital - Borderline",
       researchLink: "Για ερευνητές",
       allGames: "← Όλα τα παιχνίδια",
       loading: "Φόρτωση παγκόσμιου χάρτη…",
@@ -942,6 +942,12 @@
     const wrap = document.getElementById("map-wrap");
     const w = wrap.clientWidth, h = wrap.clientHeight;
     svg.attr("viewBox", `0 0 ${w} ${h}`).attr("width", w).attr("height", h);
+    // a page may host a second map (e.g. Greece); don't let the world layout
+    // reset its projection or pan boundary
+    if (typeof mapMode !== "undefined" && mapMode === "greece") {
+      if (typeof layoutGreece === "function") layoutGreece();
+      return;
+    }
     if (!quizPool.length) return;
 
     const yT = millerY(LAT_TOP), yB = millerY(LAT_BOT);

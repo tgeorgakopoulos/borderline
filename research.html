@@ -1241,6 +1241,12 @@
     const wrap = document.getElementById("map-wrap");
     const w = wrap.clientWidth, h = wrap.clientHeight;
     svg.attr("viewBox", `0 0 ${w} ${h}`).attr("width", w).attr("height", h);
+    // a page may host a second map (e.g. Greece); don't let the world layout
+    // reset its projection or pan boundary
+    if (typeof mapMode !== "undefined" && mapMode === "greece") {
+      if (typeof layoutGreece === "function") layoutGreece();
+      return;
+    }
     if (!quizPool.length) return;
 
     const yT = millerY(LAT_TOP), yB = millerY(LAT_BOT);
@@ -2073,6 +2079,9 @@
     gLakes.style("display", world ? null : "none");
     gMarkers.style("display", world ? null : "none");
     frameBorder.style("display", world ? null : "none");
+    // the world's sea rectangle is sized to the world frame — it would show as a band
+    sea.style("display", world ? null : "none");
+    document.getElementById("map-wrap").style.background = world ? "" : "var(--sea)";
     gLayer.style("display", world ? "none" : null);
     if (!world) layoutGreece();
   }
