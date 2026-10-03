@@ -559,6 +559,11 @@ const ISLANDS = {"Maldives":[[[[73.162,-0.682],[73.173,-0.688],[73.165,-0.688],[
     return { center, fitSpan: span, hl: null, span };
   }
 
+  const areaCache = new WeakMap();
+  function smallLand(f) {       // < ~30,000 km² of land
+    if (!areaCache.has(f)) { let a = d3.geoArea(f); a = Math.min(a, 4 * Math.PI - a); areaCache.set(f, a); }
+    return areaCache.get(f) < 7.4e-4;
+  }
   function layout() {
     const wrap = document.getElementById("map-wrap");
     const w = wrap.clientWidth, h = wrap.clientHeight;
@@ -587,7 +592,8 @@ const ISLANDS = {"Maldives":[[[[73.162,-0.682],[73.173,-0.688],[73.165,-0.688],[
       .attr("vector-effect", "non-scaling-stroke");
     // islands too small to see at this scale get a dot, so they don't vanish (Maldives, Caribbean, Pacific)
     const specks = [], seen = new Set();
-    const addSpecks = (geoms, fill) => { for (const f of geoms) for (const poly of polysOf(f)) {
+    // only for small countries (island nations, micro-states) — not every islet of Canada or Greece
+    const addSpecks = (geoms, fill) => { for (const f of geoms) { if (!smallLand(f)) continue; for (const poly of polysOf(f)) {
       const g = { type: "Polygon", coordinates: poly };
       const b = path.bounds(g);
       if (!isFinite(b[0][0]) || b[1][0] - b[0][0] > 2.5 || b[1][1] - b[0][1] > 2.5) continue;
@@ -596,7 +602,7 @@ const ISLANDS = {"Maldives":[[[[73.162,-0.682],[73.173,-0.688],[73.165,-0.688],[
       const key = Math.round(cx / 3) + "," + Math.round(cy / 3);
       if (seen.has(key)) continue; seen.add(key);
       specks.push({ x: cx, y: cy, fill });
-    } };
+    } } };
     addSpecks(hlGeo, "#fff");
     addSpecks(feats.filter(f => !(v.hl && f.properties.name === v.hl)), v.hl ? "#EFEBE2" : "#FBF9F5");
     gSpecks.selectAll("circle").data(specks).join("circle")
