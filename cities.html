@@ -1,0 +1,797 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Borderline — Cities</title>
+<meta name="description" content="Pinpoint 200 famous world cities — the closer you tap, the more points. Part of Borderline geography games.">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="icon" href="favicon-32.png" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="manifest" href="site.webmanifest">
+<meta name="theme-color" content="#002147">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Borderline Cities">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700;9..144,900&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/topojson/3.0.2/topojson.min.js"></script>
+<style>
+  :root {
+    --paper: #F4F0E8; --ink: #002147; --muted: #6B6459; --line: #C9C2B8;
+    --sea: #E7E1D3; --crimson: #A50021; --marigold: #FDB94E; --butter: #FDE169;
+    --good: #1D7A44; --good-soft: #BFE0C8; --bad: #A50021; --bad-soft: #EEC3CA;
+    --serif: 'Fraunces', Georgia, serif;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; overflow: hidden; }
+  @supports (height: 100dvh) { body { height: 100dvh; } }
+  body {
+    font-family: 'Space Grotesk', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+    background: var(--paper); color: var(--ink); display: flex; flex-direction: column;
+  }
+  #lang-toggle {
+    position: absolute; top: 14px; right: 14px; z-index: 20; display: flex;
+    border: 1px solid var(--line); border-radius: 10px; overflow: hidden;
+    background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.08);
+  }
+  .lang-btn { border: none; background: #fff; color: var(--muted); padding: 7px 13px;
+    font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit; }
+  .lang-btn.active { background: var(--ink); color: var(--paper); }
+
+  #map-wrap { flex: 1; position: relative; min-height: 0; }
+  #map { width: 100%; height: 100%; display: block; touch-action: none; }
+  #hud {
+    display: none; position: absolute; top: 10px; left: 50%; transform: translateX(-50%);
+    z-index: 5; align-items: center; gap: 16px; padding: 9px 18px;
+    background: rgba(255,255,255,.96); border: 1px solid var(--line); border-radius: 14px;
+    box-shadow: 0 2px 8px rgba(0,0,0,.08); max-width: 94%;
+  }
+  #hud.on { display: flex; }
+  #prompt { font-size: 12.5px; color: var(--muted); white-space: nowrap; }
+  #tcty { font-size: 12.5px; color: var(--muted); margin-left: 6px; font-family: inherit; font-weight: 500; }
+  #target { font-family: var(--serif); font-weight: 700; font-size: clamp(17px,3vw,25px); white-space: nowrap; }
+  #counter { font-size: 12.5px; color: var(--muted); white-space: nowrap; }
+  #pts { font-size: 12.5px; color: var(--muted); white-space: nowrap; }
+  #pts b { color: var(--ink); font-size: 15px; }
+
+  #zoomers { position: absolute; right: 14px; bottom: 18px; display: none; flex-direction: column; gap: 6px; }
+  #zoomers.on { display: flex; }
+  #zoomers button { width: 42px; height: 42px; border: 1px solid var(--line); background: #fff;
+    border-radius: 10px; font-size: 20px; cursor: pointer; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+  #toast { position: absolute; left: 50%; top: 74px; transform: translateX(-50%);
+    background: var(--ink); color: #fff; padding: 9px 18px; border-radius: 10px; font-size: 15px;
+    opacity: 0; pointer-events: none; transition: opacity .25s; max-width: 90%; text-align: center; }
+  #toast.show { opacity: 1; }
+  #toast.good { background: var(--good); } #toast.bad { background: var(--bad); }
+
+  .screen { position: absolute; inset: 0; display: none; align-items: center; justify-content: center;
+    background: rgba(244,240,232,.98); z-index: 10; overflow-y: auto; }
+  .screen.active { display: flex; }
+  .panel { max-width: 560px; width: 92%; text-align: center; padding: 32px 8px; }
+  h1 { font-family: var(--serif); font-weight: 900; letter-spacing: -1px; font-size: clamp(38px,7.5vw,64px); line-height: 1; }
+  .brand-rule { border-top: 3px dashed var(--crimson); width: 100vw; margin: 18px 0 14px calc(50% - 50vw); }
+  .tagline { font-size: 13px; letter-spacing: 4px; text-transform: uppercase; opacity: .75; margin-bottom: 26px; }
+  .row-label { font-size: 12px; letter-spacing: 2px; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; }
+  .pill-row { display: flex; gap: 8px; justify-content: center; margin-bottom: 20px; flex-wrap: wrap; }
+  .pill { border: 1.5px solid rgba(0,33,71,.35); background: #fff; border-radius: 999px;
+    padding: 8px 16px; font-size: 14px; cursor: pointer; color: var(--ink); font-family: inherit; }
+  .pill.active { border-color: var(--ink); color: var(--paper); font-weight: 700; background: var(--ink); }
+  .pill .cnt { margin-left: 6px; font-size: 12px; opacity: .85; }
+  .mode-grid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 12px; margin-bottom: 18px; }
+  .mode-btn { border: 2px solid var(--ink); background: #fff; border-radius: 10px; padding: 16px 14px;
+    cursor: pointer; text-align: left; font-family: inherit; transition: border-color .15s, box-shadow .15s, transform .1s; }
+  .mode-btn .m-title { font-family: var(--serif); font-size: 19px; font-weight: 600; margin-bottom: 3px; }
+  .mode-btn .m-desc { font-size: 13px; color: var(--muted); }
+  .mode-btn[data-mode="survival"] { background: var(--crimson); border-color: var(--crimson); }
+  .mode-btn[data-mode="survival"] .m-title { color: var(--butter); }
+  .mode-btn[data-mode="survival"] .m-desc { color: var(--paper); }
+  .big-score { font-family: var(--serif); font-size: 56px; font-weight: 900; color: var(--crimson); margin: 8px 0 2px; }
+  .sub { color: var(--muted); font-size: 16px; margin-bottom: 20px; }
+  .stats { display: flex; justify-content: center; gap: 26px; margin: 16px 0 20px; font-size: 13px; color: var(--muted); }
+  .stats b { display: block; font-family: var(--serif); font-size: 21px; color: var(--ink); }
+  #misses { text-align: left; font-size: 14px; max-height: 190px; overflow-y: auto; border: 1px solid var(--line);
+    border-radius: 10px; padding: 10px 14px; margin-bottom: 20px; background: #fff; }
+  #misses div { padding: 3px 0; color: var(--muted); }
+  #misses b { color: var(--ink); }
+  .btn-row { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+  .primary-btn { background: var(--ink); color: var(--paper); border: none; border-radius: 10px;
+    padding: 12px 22px; font-size: 15px; cursor: pointer; font-family: inherit; }
+  .ghost-btn { background: #fff; color: var(--ink); border: 1.5px solid var(--line); border-radius: 10px;
+    padding: 12px 22px; font-size: 15px; cursor: pointer; font-family: inherit; }
+  .colophon { margin-top: 26px; font-size: 12px; color: var(--muted); display: flex; gap: 8px;
+    justify-content: center; align-items: center; flex-wrap: wrap; }
+  .colophon a { color: var(--crimson); text-decoration: none; }
+  .colophon .dot { opacity: .5; }
+  #loading { color: var(--muted); font-size: 16px; }
+  @media (max-width: 620px) {
+    #lang-toggle { top: 10px; right: 10px; }
+    .lang-btn { padding: 6px 11px; font-size: 12px; }
+    .screen .panel { padding-top: 66px; }
+  }
+  /* hover only where a real pointer exists — on touch, :hover sticks after a tap */
+  @media (hover: hover) and (pointer: fine) {
+    .colophon a:hover { text-decoration: underline; }
+    .mode-btn:hover { border-color: var(--crimson); box-shadow: 0 3px 12px rgba(165,0,33,.16); transform: translateY(-1px); }
+    .ghost-btn:hover { border-color: var(--ink); }
+  }
+</style>
+</head>
+<body>
+
+<div id="lang-toggle">
+  <button class="lang-btn" data-lang="en">EN</button>
+  <button class="lang-btn" data-lang="el">ΕΛ</button>
+</div>
+
+<div id="map-wrap">
+  <svg id="map"></svg>
+  <div id="hud">
+    <div><div id="prompt"></div><div id="target">—</div></div>
+    <div id="counter"></div>
+    <div id="pts"><span data-i18n="points">Points</span> <b id="score">0</b></div>
+  </div>
+  <div id="zoomers">
+    <button id="zin" aria-label="Zoom in">+</button>
+    <button id="zout" aria-label="Zoom out">−</button>
+    <button id="zreset" aria-label="Reset" style="font-size:14px">⌂</button>
+  </div>
+  <div id="toast"></div>
+
+  <div class="screen active" id="menu-screen">
+    <div class="panel">
+      <h1 data-i18n="title">Cities</h1>
+      <div class="brand-rule"></div>
+      <p class="tagline" data-i18n="tagline">Pinpoint the city</p>
+      <div id="loading" data-i18n="loading">Loading the world map…</div>
+      <div id="menu-body" style="display:none">
+        <p class="row-label" data-i18n="lblWhere">Where</p>
+        <div class="pill-row" id="grp-row">
+          <button class="pill" data-grp="all"><span class="l"></span><span class="cnt"></span></button>
+          <button class="pill" data-grp="eu"><span class="l"></span><span class="cnt"></span></button>
+          <button class="pill" data-grp="as"><span class="l"></span><span class="cnt"></span></button>
+          <button class="pill" data-grp="af"><span class="l"></span><span class="cnt"></span></button>
+          <button class="pill" data-grp="am"><span class="l"></span><span class="cnt"></span></button>
+        </div>
+        <p class="row-label" data-i18n="lblDiff">Difficulty</p>
+        <div class="pill-row" id="diff-row">
+          <button class="pill" data-diff="1"><span class="l"></span><span class="cnt"></span></button>
+          <button class="pill" data-diff="2"><span class="l"></span><span class="cnt"></span></button>
+          <button class="pill" data-diff="all"><span class="l"></span><span class="cnt"></span></button>
+        </div>
+        <div class="mode-grid">
+          <button class="mode-btn" data-mode="10"><div class="m-title" data-i18n="m10">Quick</div><div class="m-desc" data-i18n="m10d">10 random cities</div></button>
+          <button class="mode-btn" data-mode="20"><div class="m-title" data-i18n="m20">Classic</div><div class="m-desc" data-i18n="m20d">20 random cities</div></button>
+          <button class="mode-btn" data-mode="marathon"><div class="m-title" data-i18n="mMara">Marathon</div><div class="m-desc" id="mara-desc"></div></button>
+          <button class="mode-btn" data-mode="survival"><div class="m-title" data-i18n="mSurv">Survival ∞</div><div class="m-desc"><span data-i18n="mSurvD">Until your first miss. Best: </span><span id="hiscore">0</span></div></button>
+        </div>
+        <p class="colophon">
+          <a href="index.html" data-i18n="allGames">← All games</a>
+          <span class="dot">·</span><span data-i18n="copyright">© 2026 Social Capital - Borderline</span>
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <div class="screen" id="results-screen">
+    <div class="panel">
+      <h1 style="font-size:clamp(28px,5vw,40px)" id="res-title">Results</h1>
+      <div class="big-score" id="final-score">0</div>
+      <div class="sub" id="final-sub"></div>
+      <div class="stats">
+        <div><b id="r-hits">—</b><span data-i18n="onTarget">On target</span></div>
+        <div><b id="r-dist">—</b><span data-i18n="medDist">Median miss</span></div>
+        <div><b id="r-streak">—</b><span data-i18n="streak">Best streak</span></div>
+      </div>
+      <div id="misses"></div>
+      <div class="btn-row">
+        <button class="primary-btn" id="again-btn" data-i18n="again">Play again</button>
+        <button class="ghost-btn" id="menu-btn" data-i18n="change">Change mode</button>
+      </div>
+      <p class="colophon"><a href="index.html" data-i18n="allGames">← All games</a></p>
+    </div>
+  </div>
+</div>
+
+<script>
+// Borderline — Cities dataset (canonical; edit here)
+// [en, el, country(atlas name), lat, lon, tier 1-3, view C=country R=region K=Europe, group eu|as|af|am]
+const CITIES = [
+["London", "Λονδίνο", "United Kingdom", 51.507, -0.128, 1, "C", "as"],
+["Paris", "Παρίσι", "France", 48.857, 2.352, 1, "C", "eu"],
+["Rome", "Ρώμη", "Italy", 41.903, 12.496, 1, "C", "eu"],
+["Berlin", "Βερολίνο", "Germany", 52.52, 13.405, 1, "C", "eu"],
+["Madrid", "Μαδρίτη", "Spain", 40.417, -3.704, 1, "C", "eu"],
+["Barcelona", "Βαρκελώνη", "Spain", 41.385, 2.173, 1, "C", "eu"],
+["Amsterdam", "Άμστερνταμ", "Netherlands", 52.37, 4.895, 1, "K", "eu"],
+["Athens", "Αθήνα", "Greece", 37.984, 23.728, 1, "C", "eu"],
+["Moscow", "Μόσχα", "Russia", 55.756, 37.617, 1, "K", "eu"],
+["Istanbul", "Κωνσταντινούπολη", "Turkey", 41.008, 28.978, 1, "K", "eu"],
+["Vienna", "Βιέννη", "Austria", 48.208, 16.373, 1, "K", "eu"],
+["Prague", "Πράγα", "Czechia", 50.075, 14.438, 1, "K", "eu"],
+["Venice", "Βενετία", "Italy", 45.44, 12.316, 2, "C", "eu"],
+["Milan", "Μιλάνο", "Italy", 45.464, 9.19, 1, "C", "eu"],
+["Lisbon", "Λισαβόνα", "Portugal", 38.722, -9.139, 1, "C", "eu"],
+["Dublin", "Δουβλίνο", "Ireland", 53.35, -6.26, 1, "C", "eu"],
+["Vatican City", "Βατικανό", "Vatican", 41.902, 12.453, 2, "R", "eu"],
+["Brussels", "Βρυξέλλες", "Belgium", 50.85, 4.352, 1, "K", "eu"],
+["Monaco", "Μονακό", "Monaco", 43.738, 7.425, 2, "R", "eu"],
+["Florence", "Φλωρεντία", "Italy", 43.77, 11.256, 2, "C", "eu"],
+["Naples", "Νάπολη", "Italy", 40.852, 14.268, 2, "C", "eu"],
+["Pisa", "Πίζα", "Italy", 43.717, 10.401, 2, "C", "eu"],
+["Munich", "Μόναχο", "Germany", 48.137, 11.575, 2, "C", "eu"],
+["Hamburg", "Αμβούργο", "Germany", 53.551, 9.994, 2, "C", "eu"],
+["Frankfurt", "Φρανκφούρτη", "Germany", 50.11, 8.682, 2, "C", "eu"],
+["Zurich", "Ζυρίχη", "Switzerland", 47.377, 8.541, 2, "K", "eu"],
+["Geneva", "Γενεύη", "Switzerland", 46.204, 6.143, 2, "C", "eu"],
+["Copenhagen", "Κοπεγχάγη", "Denmark", 55.676, 12.568, 2, "K", "eu"],
+["Stockholm", "Στοκχόλμη", "Sweden", 59.329, 18.069, 1, "K", "eu"],
+["Oslo", "Όσλο", "Norway", 59.914, 10.752, 2, "C", "eu"],
+["Helsinki", "Ελσίνκι", "Finland", 60.17, 24.938, 1, "K", "eu"],
+["Warsaw", "Βαρσοβία", "Poland", 52.23, 21.012, 1, "K", "eu"],
+["Budapest", "Βουδαπέστη", "Hungary", 47.498, 19.04, 2, "K", "eu"],
+["Edinburgh", "Εδιμβούργο", "United Kingdom", 55.953, -3.189, 2, "C", "as"],
+["Manchester", "Μάντσεστερ", "United Kingdom", 53.481, -2.243, 2, "C", "as"],
+["Liverpool", "Λίβερπουλ", "United Kingdom", 53.408, -2.991, 2, "C", "as"],
+["Marseille", "Μασσαλία", "France", 43.296, 5.37, 2, "C", "eu"],
+["Nice", "Νίκαια", "France", 43.71, 7.262, 2, "C", "eu"],
+["Seville", "Σεβίλλη", "Spain", 37.389, -5.984, 2, "C", "eu"],
+["Porto", "Πόρτο", "Portugal", 41.158, -8.629, 2, "K", "eu"],
+["Saint Petersburg", "Αγία Πετρούπολη", "Russia", 59.934, 30.336, 2, "K", "eu"],
+["Kyiv", "Κίεβο", "Ukraine", 50.45, 30.523, 1, "K", "eu"],
+["Bucharest", "Βουκουρέστι", "Romania", 44.427, 26.103, 1, "K", "eu"],
+["Dubrovnik", "Ντουμπρόβνικ", "Croatia", 42.65, 18.094, 2, "C", "eu"],
+["Thessaloniki", "Θεσσαλονίκη", "Greece", 40.64, 22.944, 2, "C", "eu"],
+["Reykjavik", "Ρέικιαβικ", "Iceland", 64.147, -21.942, 2, "K", "eu"],
+["Nicosia", "Λευκωσία", "Cyprus", 35.186, 33.382, 2, "R", "eu"],
+["Gibraltar", "Γιβραλτάρ", "Gibraltar", 36.14, -5.354, 2, "R", "eu"],
+["Lyon", "Λυών", "France", 45.764, 4.836, 3, "C", "eu"],
+["Bordeaux", "Μπορντό", "France", 44.838, -0.579, 3, "C", "eu"],
+["Valencia", "Βαλένθια", "Spain", 39.47, -0.376, 3, "C", "eu"],
+["Granada", "Γρανάδα", "Spain", 37.177, -3.599, 3, "C", "eu"],
+["Sofia", "Σόφια", "Bulgaria", 42.698, 23.322, 2, "K", "eu"],
+["Belgrade", "Βελιγράδι", "Serbia", 44.787, 20.457, 3, "K", "eu"],
+["Krakow", "Κρακοβία", "Poland", 50.065, 19.945, 3, "C", "eu"],
+["Salzburg", "Σάλτσμπουργκ", "Austria", 47.81, 13.055, 3, "C", "eu"],
+["Bruges", "Μπριζ", "Belgium", 51.209, 3.225, 3, "C", "eu"],
+["Rotterdam", "Ρότερνταμ", "Netherlands", 51.924, 4.478, 3, "C", "eu"],
+["Cologne", "Κολωνία", "Germany", 50.938, 6.96, 3, "C", "eu"],
+["Turin", "Τορίνο", "Italy", 45.07, 7.687, 3, "C", "eu"],
+["Palermo", "Παλέρμο", "Italy", 38.116, 13.361, 3, "C", "eu"],
+["Oxford", "Οξφόρδη", "United Kingdom", 51.752, -1.258, 3, "C", "as"],
+["Belfast", "Μπέλφαστ", "United Kingdom", 54.597, -5.93, 3, "C", "as"],
+["Bergen", "Μπέργκεν", "Norway", 60.391, 5.322, 3, "C", "eu"],
+["Luxembourg", "Λουξεμβούργο", "Luxembourg", 49.612, 6.13, 3, "R", "eu"],
+["Valletta", "Βαλέτα", "Malta", 35.899, 14.514, 3, "R", "eu"],
+["San Marino", "Άγιος Μαρίνος", "San Marino", 43.936, 12.447, 3, "R", "eu"],
+["Riga", "Ρίγα", "Latvia", 56.95, 24.105, 3, "K", "eu"],
+["Tallinn", "Ταλίν", "Estonia", 59.437, 24.754, 3, "K", "eu"],
+["Vilnius", "Βίλνιους", "Lithuania", 54.687, 25.28, 3, "K", "eu"],
+["Zagreb", "Ζάγκρεμπ", "Croatia", 45.815, 15.982, 3, "K", "eu"],
+["Bratislava", "Μπρατισλάβα", "Slovakia", 48.149, 17.107, 3, "K", "eu"],
+["Sarajevo", "Σαράγεβο", "Bosnia and Herz.", 43.856, 18.413, 3, "K", "eu"],
+["Odesa", "Οδησσός", "Ukraine", 46.482, 30.723, 3, "C", "eu"],
+["Tbilisi", "Τιφλίδα", "Georgia", 41.716, 44.783, 3, "C", "eu"],
+["Yerevan", "Ερεβάν", "Armenia", 40.179, 44.499, 3, "C", "eu"],
+["Baku", "Μπακού", "Azerbaijan", 40.409, 49.867, 3, "C", "eu"],
+["Cairo", "Κάιρο", "Egypt", 30.044, 31.236, 1, "C", "af"],
+["Dubai", "Ντουμπάι", "United Arab Emirates", 25.205, 55.271, 2, "R", "af"],
+["Mecca", "Μέκκα", "Saudi Arabia", 21.389, 39.858, 2, "C", "af"],
+["Doha", "Ντόχα", "Qatar", 25.286, 51.533, 3, "R", "af"],
+["Riyadh", "Ριάντ", "Saudi Arabia", 24.713, 46.675, 2, "C", "af"],
+["Tehran", "Τεχεράνη", "Iran", 35.689, 51.389, 3, "C", "af"],
+["Baghdad", "Βαγδάτη", "Iraq", 33.315, 44.366, 2, "C", "af"],
+["Alexandria", "Αλεξάνδρεια", "Egypt", 31.2, 29.919, 2, "C", "af"],
+["Abu Dhabi", "Άμπου Ντάμπι", "United Arab Emirates", 24.453, 54.377, 3, "R", "af"],
+["Beirut", "Βηρυτός", "Lebanon", 33.894, 35.502, 3, "R", "af"],
+["Damascus", "Δαμασκός", "Syria", 33.513, 36.292, 3, "R", "af"],
+["Amman", "Αμμάν", "Jordan", 31.954, 35.911, 3, "R", "af"],
+["Luxor", "Λούξορ", "Egypt", 25.687, 32.64, 3, "C", "af"],
+["Jeddah", "Τζέντα", "Saudi Arabia", 21.485, 39.193, 3, "C", "af"],
+["Muscat", "Μασκάτ", "Oman", 23.588, 58.383, 3, "R", "af"],
+["Kuwait City", "Πόλη του Κουβέιτ", "Kuwait", 29.376, 47.977, 3, "R", "af"],
+["Manama", "Μανάμα", "Bahrain", 26.229, 50.586, 3, "R", "af"],
+["Cape Town", "Κέιπ Τάουν", "South Africa", -33.925, 18.424, 2, "C", "af"],
+["Marrakesh", "Μαρακές", "Morocco", 31.629, -7.981, 3, "R", "af"],
+["Casablanca", "Καζαμπλάνκα", "Morocco", 33.573, -7.59, 3, "R", "af"],
+["Lagos", "Λάγος", "Nigeria", 6.524, 3.379, 2, "C", "af"],
+["Nairobi", "Ναϊρόμπι", "Kenya", -1.292, 36.822, 3, "C", "af"],
+["Johannesburg", "Γιοχάνεσμπουργκ", "South Africa", -26.204, 28.047, 3, "C", "af"],
+["Tunis", "Τύνιδα", "Tunisia", 36.806, 10.181, 3, "C", "af"],
+["Algiers", "Αλγέρι", "Algeria", 36.754, 3.059, 3, "C", "af"],
+["Fez", "Φεζ", "Morocco", 34.033, -5.0, 3, "R", "af"],
+["Addis Ababa", "Αντίς Αμπέμπα", "Ethiopia", 9.03, 38.74, 3, "R", "af"],
+["Timbuktu", "Τιμπουκτού", "Mali", 16.774, -3.007, 3, "R", "af"],
+["Dakar", "Ντακάρ", "Senegal", 14.716, -17.467, 3, "R", "af"],
+["Kinshasa", "Κινσάσα", "Dem. Rep. Congo", -4.441, 15.266, 3, "R", "af"],
+["Accra", "Άκρα", "Ghana", 5.603, -0.187, 3, "R", "af"],
+["Khartoum", "Χαρτούμ", "Sudan", 15.501, 32.56, 3, "R", "af"],
+["Dar es Salaam", "Νταρ ες Σαλάμ", "Tanzania", -6.792, 39.208, 3, "R", "af"],
+["Zanzibar City", "Ζανζιβάρη", "Tanzania", -6.165, 39.199, 3, "R", "af"],
+["Durban", "Ντέρμπαν", "South Africa", -29.858, 31.022, 3, "C", "af"],
+["Tokyo", "Τόκιο", "Japan", 35.676, 139.65, 1, "C", "as"],
+["Beijing", "Πεκίνο", "China", 39.904, 116.407, 1, "C", "as"],
+["Shanghai", "Σαγκάη", "China", 31.23, 121.474, 2, "C", "as"],
+["Hong Kong", "Χονγκ Κονγκ", "China", 22.32, 114.169, 1, "C", "as"],
+["Seoul", "Σεούλ", "South Korea", 37.567, 126.978, 1, "R", "as"],
+["Singapore", "Σιγκαπούρη", "Singapore", 1.352, 103.82, 1, "R", "as"],
+["Bangkok", "Μπανγκόκ", "Thailand", 13.756, 100.502, 2, "C", "as"],
+["New Delhi", "Νέο Δελχί", "India", 28.614, 77.209, 2, "C", "as"],
+["Mumbai", "Βομβάη", "India", 19.076, 72.878, 2, "C", "as"],
+["Kyoto", "Κιότο", "Japan", 35.012, 135.768, 2, "C", "as"],
+["Osaka", "Οσάκα", "Japan", 34.694, 135.502, 2, "C", "as"],
+["Hiroshima", "Χιροσίμα", "Japan", 34.385, 132.455, 3, "C", "as"],
+["Pyongyang", "Πιονγιάνγκ", "North Korea", 39.039, 125.763, 2, "R", "as"],
+["Hanoi", "Ανόι", "Vietnam", 21.028, 105.854, 2, "R", "as"],
+["Ho Chi Minh City", "Πόλη Χο Τσι Μινχ", "Vietnam", 10.823, 106.63, 3, "R", "as"],
+["Kuala Lumpur", "Κουάλα Λουμπούρ", "Malaysia", 3.139, 101.687, 2, "C", "as"],
+["Jakarta", "Τζακάρτα", "Indonesia", -6.209, 106.846, 2, "R", "as"],
+["Denpasar (Bali)", "Ντενπασάρ (Μπαλί)", "Indonesia", -8.65, 115.217, 2, "R", "as"],
+["Manila", "Μανίλα", "Philippines", 14.6, 120.984, 2, "R", "as"],
+["Taipei", "Ταϊπέι", "Taiwan", 25.033, 121.565, 2, "R", "as"],
+["Kolkata", "Καλκούτα", "India", 22.573, 88.364, 3, "C", "as"],
+["Kathmandu", "Κατμαντού", "Nepal", 27.717, 85.324, 2, "C", "as"],
+["Agra", "Άγκρα", "India", 27.177, 78.008, 3, "C", "as"],
+["Bangalore", "Μπανγκαλόρ", "India", 12.972, 77.595, 3, "C", "as"],
+["Chennai", "Τσενάι", "India", 13.083, 80.27, 3, "C", "as"],
+["Karachi", "Καράτσι", "Pakistan", 24.861, 67.01, 3, "C", "as"],
+["Islamabad", "Ισλαμαμπάντ", "Pakistan", 33.684, 73.048, 3, "R", "as"],
+["Kabul", "Καμπούλ", "Afghanistan", 34.555, 69.207, 3, "C", "as"],
+["Shenzhen", "Σενζέν", "China", 22.543, 114.058, 3, "C", "as"],
+["Macau", "Μακάο", "China", 22.199, 113.544, 3, "C", "as"],
+["Dhaka", "Ντάκα", "Bangladesh", 23.81, 90.413, 3, "R", "as"],
+["Colombo", "Κολόμπο", "Sri Lanka", 6.927, 79.861, 3, "R", "as"],
+["Malé", "Μαλέ", "Maldives", 4.175, 73.509, 3, "R", "as"],
+["Ulaanbaatar", "Ουλάν Μπατόρ", "Mongolia", 47.886, 106.906, 3, "R", "as"],
+["Samarkand", "Σαμαρκάνδη", "Uzbekistan", 39.654, 66.976, 3, "R", "as"],
+["Tashkent", "Τασκένδη", "Uzbekistan", 41.299, 69.24, 3, "R", "as"],
+["Yangon", "Γιανγκόν", "Myanmar", 16.84, 96.173, 3, "R", "as"],
+["Phnom Penh", "Πνομ Πενχ", "Cambodia", 11.556, 104.928, 3, "R", "as"],
+["Vladivostok", "Βλαδιβοστόκ", "Russia", 43.116, 131.886, 3, "C", "as"],
+["New York", "Νέα Υόρκη", "United States of America", 40.713, -74.006, 1, "C", "am"],
+["Los Angeles", "Λος Άντζελες", "United States of America", 34.052, -118.244, 1, "C", "am"],
+["Chicago", "Σικάγο", "United States of America", 41.878, -87.63, 1, "C", "am"],
+["San Francisco", "Σαν Φρανσίσκο", "United States of America", 37.775, -122.419, 1, "C", "am"],
+["Washington, D.C.", "Ουάσινγκτον", "United States of America", 38.907, -77.037, 1, "C", "am"],
+["Miami", "Μαϊάμι", "United States of America", 25.762, -80.192, 1, "C", "am"],
+["Toronto", "Τορόντο", "Canada", 43.653, -79.383, 1, "C", "am"],
+["Mexico City", "Πόλη του Μεξικού", "Mexico", 19.433, -99.133, 1, "C", "am"],
+["Las Vegas", "Λας Βέγκας", "United States of America", 36.17, -115.14, 2, "C", "am"],
+["Boston", "Βοστόνη", "United States of America", 42.36, -71.059, 1, "C", "am"],
+["Seattle", "Σιάτλ", "United States of America", 47.606, -122.332, 1, "C", "am"],
+["New Orleans", "Νέα Ορλεάνη", "United States of America", 29.951, -90.072, 2, "C", "am"],
+["Houston", "Χιούστον", "United States of America", 29.76, -95.37, 2, "C", "am"],
+["Honolulu", "Χονολουλού", "United States of America", 21.307, -157.858, 2, "R", "am"],
+["Montreal", "Μόντρεαλ", "Canada", 45.502, -73.567, 2, "C", "am"],
+["Vancouver", "Βανκούβερ", "Canada", 49.283, -123.121, 2, "C", "am"],
+["Cancún", "Κανκούν", "Mexico", 21.162, -86.851, 2, "C", "am"],
+["Havana", "Αβάνα", "Cuba", 23.113, -82.366, 2, "R", "am"],
+["Detroit", "Ντιτρόιτ", "United States of America", 42.331, -83.046, 3, "C", "am"],
+["Denver", "Ντένβερ", "United States of America", 39.739, -104.99, 3, "C", "am"],
+["Dallas", "Ντάλας", "United States of America", 32.777, -96.797, 3, "C", "am"],
+["Atlanta", "Ατλάντα", "United States of America", 33.749, -84.388, 3, "C", "am"],
+["Philadelphia", "Φιλαδέλφεια", "United States of America", 39.953, -75.165, 3, "C", "am"],
+["San Diego", "Σαν Ντιέγκο", "United States of America", 32.716, -117.161, 3, "C", "am"],
+["Orlando", "Ορλάντο", "United States of America", 28.538, -81.379, 3, "C", "am"],
+["Ottawa", "Οτάβα", "Canada", 45.421, -75.697, 3, "C", "am"],
+["Kingston", "Κίνγκστον", "Jamaica", 17.971, -76.793, 3, "R", "am"],
+["Panama City", "Πόλη του Παναμά", "Panama", 8.983, -79.517, 3, "R", "am"],
+["San Juan", "Σαν Χουάν", "Puerto Rico", 18.466, -66.106, 3, "R", "am"],
+["Rio de Janeiro", "Ρίο ντε Τζανέιρο", "Brazil", -22.907, -43.173, 1, "C", "am"],
+["Buenos Aires", "Μπουένος Άιρες", "Argentina", -34.604, -58.382, 1, "C", "am"],
+["São Paulo", "Σάο Πάολο", "Brazil", -23.551, -46.633, 2, "C", "am"],
+["Lima", "Λίμα", "Peru", -12.046, -77.043, 2, "C", "am"],
+["Cusco", "Κούσκο", "Peru", -13.532, -71.968, 2, "C", "am"],
+["Santiago", "Σαντιάγο", "Chile", -33.449, -70.669, 2, "C", "am"],
+["Bogotá", "Μπογκοτά", "Colombia", 4.711, -74.072, 2, "C", "am"],
+["Brasília", "Μπραζίλια", "Brazil", -15.794, -47.882, 3, "C", "am"],
+["Manaus", "Μανάους", "Brazil", -3.119, -60.022, 3, "C", "am"],
+["Ushuaia", "Ουσουάια", "Argentina", -54.802, -68.303, 3, "C", "am"],
+["Medellín", "Μεντεγίν", "Colombia", 6.244, -75.581, 3, "C", "am"],
+["Caracas", "Καράκας", "Venezuela", 10.481, -66.904, 2, "C", "am"],
+["Quito", "Κίτο", "Ecuador", -0.18, -78.468, 3, "C", "am"],
+["La Paz", "Λα Παζ", "Bolivia", -16.5, -68.15, 3, "C", "am"],
+["Montevideo", "Μοντεβιδέο", "Uruguay", -34.901, -56.165, 3, "C", "am"],
+["Sydney", "Σίδνεϊ", "Australia", -33.869, 151.209, 1, "C", "as"],
+["Melbourne", "Μελβούρνη", "Australia", -37.814, 144.963, 1, "C", "as"],
+["Perth", "Περθ", "Australia", -31.95, 115.86, 2, "C", "as"],
+["Brisbane", "Μπρίσμπεϊν", "Australia", -27.47, 153.026, 2, "C", "as"],
+["Auckland", "Ώκλαντ", "New Zealand", -36.849, 174.763, 2, "C", "as"],
+["Canberra", "Καμπέρα", "Australia", -35.281, 149.13, 3, "C", "as"],
+["Wellington", "Ουέλινγκτον", "New Zealand", -41.287, 174.776, 3, "R", "as"]
+];
+const CNAMES = {"Afghanistan": ["Afghanistan", "Αφγανιστάν"], "Algeria": ["Algeria", "Αλγερία"], "Argentina": ["Argentina", "Αργεντινή"], "Armenia": ["Armenia", "Αρμενία"], "Australia": ["Australia", "Αυστραλία"], "Austria": ["Austria", "Αυστρία"], "Azerbaijan": ["Azerbaijan", "Αζερμπαϊτζάν"], "Bahrain": ["Bahrain", "Μπαχρέιν"], "Bangladesh": ["Bangladesh", "Μπανγκλαντές"], "Belgium": ["Belgium", "Βέλγιο"], "Bolivia": ["Bolivia", "Βολιβία"], "Bosnia and Herz.": ["Bosnia and Herzegovina", "Βοσνία και Ερζεγοβίνη"], "Brazil": ["Brazil", "Βραζιλία"], "Bulgaria": ["Bulgaria", "Βουλγαρία"], "Cambodia": ["Cambodia", "Καμπότζη"], "Canada": ["Canada", "Καναδάς"], "Chile": ["Chile", "Χιλή"], "China": ["China", "Κίνα"], "Colombia": ["Colombia", "Κολομβία"], "Croatia": ["Croatia", "Κροατία"], "Cuba": ["Cuba", "Κούβα"], "Cyprus": ["Cyprus", "Κύπρος"], "Czechia": ["Czechia", "Τσεχία"], "Dem. Rep. Congo": ["Democratic Republic of the Congo", "Λαϊκή Δημοκρατία του Κονγκό"], "Denmark": ["Denmark", "Δανία"], "Ecuador": ["Ecuador", "Ισημερινός"], "Egypt": ["Egypt", "Αίγυπτος"], "Estonia": ["Estonia", "Εσθονία"], "Ethiopia": ["Ethiopia", "Αιθιοπία"], "Finland": ["Finland", "Φινλανδία"], "France": ["France", "Γαλλία"], "Georgia": ["Georgia", "Γεωργία"], "Germany": ["Germany", "Γερμανία"], "Ghana": ["Ghana", "Γκάνα"], "Gibraltar": ["Gibraltar (UK)", "Γιβραλτάρ (ΗΒ)"], "Greece": ["Greece", "Ελλάδα"], "Hungary": ["Hungary", "Ουγγαρία"], "Iceland": ["Iceland", "Ισλανδία"], "India": ["India", "Ινδία"], "Indonesia": ["Indonesia", "Ινδονησία"], "Iran": ["Iran", "Ιράν"], "Iraq": ["Iraq", "Ιράκ"], "Ireland": ["Ireland", "Ιρλανδία"], "Italy": ["Italy", "Ιταλία"], "Jamaica": ["Jamaica", "Τζαμάικα"], "Japan": ["Japan", "Ιαπωνία"], "Jordan": ["Jordan", "Ιορδανία"], "Kenya": ["Kenya", "Κένυα"], "Kuwait": ["Kuwait", "Κουβέιτ"], "Latvia": ["Latvia", "Λετονία"], "Lebanon": ["Lebanon", "Λίβανος"], "Lithuania": ["Lithuania", "Λιθουανία"], "Luxembourg": ["Luxembourg", "Λουξεμβούργο"], "Malaysia": ["Malaysia", "Μαλαισία"], "Maldives": ["Maldives", "Μαλδίβες"], "Mali": ["Mali", "Μάλι"], "Malta": ["Malta", "Μάλτα"], "Mexico": ["Mexico", "Μεξικό"], "Monaco": ["Monaco", "Μονακό"], "Mongolia": ["Mongolia", "Μογγολία"], "Morocco": ["Morocco", "Μαρόκο"], "Myanmar": ["Myanmar", "Μιανμάρ"], "Nepal": ["Nepal", "Νεπάλ"], "Netherlands": ["Netherlands", "Ολλανδία"], "New Zealand": ["New Zealand", "Νέα Ζηλανδία"], "Nigeria": ["Nigeria", "Νιγηρία"], "North Korea": ["North Korea", "Βόρεια Κορέα"], "Norway": ["Norway", "Νορβηγία"], "Oman": ["Oman", "Ομάν"], "Pakistan": ["Pakistan", "Πακιστάν"], "Panama": ["Panama", "Παναμάς"], "Peru": ["Peru", "Περού"], "Philippines": ["Philippines", "Φιλιππίνες"], "Poland": ["Poland", "Πολωνία"], "Portugal": ["Portugal", "Πορτογαλία"], "Puerto Rico": ["Puerto Rico (US)", "Πουέρτο Ρίκο (ΗΠΑ)"], "Qatar": ["Qatar", "Κατάρ"], "Romania": ["Romania", "Ρουμανία"], "Russia": ["Russia", "Ρωσία"], "San Marino": ["San Marino", "Άγιος Μαρίνος"], "Saudi Arabia": ["Saudi Arabia", "Σαουδική Αραβία"], "Senegal": ["Senegal", "Σενεγάλη"], "Serbia": ["Serbia", "Σερβία"], "Singapore": ["Singapore", "Σιγκαπούρη"], "Slovakia": ["Slovakia", "Σλοβακία"], "South Africa": ["South Africa", "Νότια Αφρική"], "South Korea": ["South Korea", "Νότια Κορέα"], "Spain": ["Spain", "Ισπανία"], "Sri Lanka": ["Sri Lanka", "Σρι Λάνκα"], "Sudan": ["Sudan", "Σουδάν"], "Sweden": ["Sweden", "Σουηδία"], "Switzerland": ["Switzerland", "Ελβετία"], "Syria": ["Syria", "Συρία"], "Taiwan": ["Taiwan", "Ταϊβάν"], "Tanzania": ["Tanzania", "Τανζανία"], "Thailand": ["Thailand", "Ταϊλάνδη"], "Tunisia": ["Tunisia", "Τυνησία"], "Turkey": ["Turkey", "Τουρκία"], "Ukraine": ["Ukraine", "Ουκρανία"], "United Arab Emirates": ["United Arab Emirates", "Ηνωμένα Αραβικά Εμιράτα"], "United Kingdom": ["United Kingdom", "Ηνωμένο Βασίλειο"], "United States of America": ["United States", "Ηνωμένες Πολιτείες"], "Uruguay": ["Uruguay", "Ουρουγουάη"], "Uzbekistan": ["Uzbekistan", "Ουζμπεκιστάν"], "Vatican": ["Vatican City", "Βατικανό"], "Venezuela": ["Venezuela", "Βενεζουέλα"], "Vietnam": ["Vietnam", "Βιετνάμ"]};
+
+</script>
+<script>
+(function () {
+  "use strict";
+  const STR = {
+    en: {
+      title: "Cities", tagline: "Pinpoint the city", loading: "Loading the world map…",
+      lblWhere: "Where", lblDiff: "Difficulty",
+      gAll: "World", gEu: "Europe", gAs: "Asia & Oceania", gAf: "Africa & Middle East", gAm: "Americas",
+      d1: "Easy", d2: "Moderate", dAll: "All",
+      m10: "Quick", m10d: "10 random cities", m20: "Classic", m20d: "20 random cities",
+      mMara: "Marathon", maraD: n => "All " + n + " cities in one round",
+      mSurv: "Survival ∞", mSurvD: "Until your first miss. Best: ",
+      find: "Find this city:", item: "City", points: "Points",
+      nearBy: (km, p) => km + " km away · " + p + " points",
+      missed: km => "Missed by " + km + " km",
+      results: "Results", gameOver: "Game over!",
+      onTarget: "On target", medDist: "Median miss", streak: "Best streak",
+      newHi: "🏆 New best!", hi: "Best: ",
+      perfect: "Flawless! 🏆", great: "A true globetrotter!", ok: "Not bad!", poor: "Time to pack a suitcase!",
+      missesTitle: "Where you were furthest off",
+      mLine: (n, km) => "<b>" + n + "</b> — " + km + " km away",
+      again: "Play again", change: "Change mode",
+      allGames: "← All games", copyright: "© 2026 Social Capital - Borderline",
+      loadErr: "Could not load the map — check your connection and reload."
+    },
+    el: {
+      title: "Πόλεις", tagline: "Βρες την πόλη", loading: "Φόρτωση παγκόσμιου χάρτη…",
+      lblWhere: "Πού", lblDiff: "Δυσκολία",
+      gAll: "Κόσμος", gEu: "Ευρώπη", gAs: "Ασία & Ωκεανία", gAf: "Αφρική & Μέση Ανατολή", gAm: "Αμερική",
+      d1: "Εύκολο", d2: "Μέτριο", dAll: "Όλα",
+      m10: "Γρήγορο", m10d: "10 τυχαίες πόλεις", m20: "Κλασικό", m20d: "20 τυχαίες πόλεις",
+      mMara: "Μαραθώνιος", maraD: n => "Και οι " + n + " πόλεις σε έναν γύρο",
+      mSurv: "Επιβίωση ∞", mSurvD: "Μέχρι την πρώτη αστοχία. Ρεκόρ: ",
+      find: "Βρες την πόλη:", item: "Πόλη", points: "Πόντοι",
+      nearBy: (km, p) => km + " χλμ μακριά · " + p + " πόντοι",
+      missed: km => "Αστοχία κατά " + km + " χλμ",
+      results: "Αποτελέσματα", gameOver: "Τέλος παιχνιδιού!",
+      onTarget: "Εύστοχα", medDist: "Διάμεση αστοχία", streak: "Καλύτερο σερί",
+      newHi: "🏆 Νέο ρεκόρ!", hi: "Ρεκόρ: ",
+      perfect: "Άψογα! 🏆", great: "Αληθινός κοσμογυρισμένος!", ok: "Καλά τα πήγες!", poor: "Ώρα να ετοιμάσεις βαλίτσα!",
+      missesTitle: "Οι μεγαλύτερες αστοχίες",
+      mLine: (n, km) => "<b>" + n + "</b> — " + km + " χλμ μακριά",
+      again: "Παίξε ξανά", change: "Αλλαγή λειτουργίας",
+      allGames: "← Όλα τα παιχνίδια", copyright: "© 2026 Social Capital - Borderline",
+      loadErr: "Δεν φορτώθηκε ο χάρτης — ελέγξτε τη σύνδεση και ανανεώστε."
+    }
+  };
+  let lang = "en";
+  try { lang = localStorage.getItem("geoquiz-lang") || "en"; } catch (e) {}
+  if (!STR[lang]) lang = "en";
+  const t = k => STR[lang][k];
+
+  // city: [en, el, country(atlas), lat, lon, tier, view C|R|K, group]
+  const label = c => lang === "el" ? c[1] : c[0];
+  const ctyName = c => (CNAMES[c[2]] || [c[2], c[2]])[lang === "el" ? 1 : 0];
+  const HL_EXTRA = { "China": ["Hong Kong", "Macao"] };   // drawn as part of China
+
+  // ---------- scoring: relative to the size of the map shown ----------
+  // full points within 2% of the map's span, zero at 25%; "on target" within 10%
+  const FULL = 0.02, ZERO = 0.25, HIT = 0.10, R_EARTH = 6371;
+  function pointsFor(km, span) {
+    const r = km / span;
+    if (r <= FULL) return 100;
+    if (r >= ZERO) return 0;
+    return Math.round(100 * (1 - (r - FULL) / (ZERO - FULL)));
+  }
+
+  const svg = d3.select("#map");
+  const gRoot = svg.append("g");
+  const gBase = gRoot.append("g"), gHl = gRoot.append("g");
+  const gMarks = svg.append("g").attr("pointer-events", "none");   // outside the zoom group: marks keep their size
+  let projection = d3.geoAzimuthalEqualArea().clipAngle(90);
+  let path = d3.geoPath(projection);
+  let feats = [], byName = {}, ready = false, view = null, curT = d3.zoomIdentity, marks = [];
+
+  const zoom = d3.zoom().scaleExtent([1, 20]).clickDistance(8)
+    .on("zoom", ev => { curT = ev.transform; gRoot.attr("transform", curT); drawMarks(); });
+  svg.call(zoom);
+
+  let mt = 0, mtLast = 0;
+  svg.node().addEventListener("pointerdown", e => { if (e.pointerType === "touch") { mt++; if (mt > 1) mtLast = Date.now(); } }, true);
+  const up = e => { if (e.pointerType === "touch") { if (mt > 1) mtLast = Date.now(); mt = Math.max(0, mt - 1); } };
+  svg.node().addEventListener("pointerup", up, true);
+  svg.node().addEventListener("pointercancel", up, true);
+  const guard = () => mt > 1 || (Date.now() - mtLast) < 400;
+
+  // ---------- geometry helpers ----------
+  const polysOf = f => !f || !f.geometry ? [] : f.geometry.type === "Polygon" ? [f.geometry.coordinates]
+    : f.geometry.type === "MultiPolygon" ? f.geometry.coordinates : [];
+  // the part of a country around the city: drops far-away territories (Alaska, Hawaii, French Guiana, Svalbard…)
+  function localGeom(f, lon, lat) {
+    const polys = polysOf(f).map(c => {
+      const g = { type: "Polygon", coordinates: c };
+      let a = d3.geoArea(g); a = Math.min(a, 4 * Math.PI - a);
+      let near = Infinity;
+      if (d3.geoContains(g, [lon, lat])) near = 0;
+      else for (const pt of c[0]) { const d = d3.geoDistance(pt, [lon, lat]); if (d < near) near = d; }
+      return { c, g, a, near: near * R_EARTH, cen: d3.geoCentroid(g) };
+    });
+    if (!polys.length) return null;
+    // main landmass = the largest piece within 150 km of the city (cities on small islands, e.g. Montreal, Miami, Hong Kong)
+    const close = polys.filter(p => p.near <= 150);
+    let main = close.length ? close.reduce((a, b) => b.a > a.a ? b : a)
+      : polys.reduce((a, b) => b.near < a.near ? b : a);
+    // …and if the country's biggest landmass is within 800 km, centre on that instead (Ushuaia → Argentina, not just Tierra del Fuego)
+    const biggest = polys.reduce((a, b) => b.a > a.a ? b : a);
+    if (biggest !== main && biggest.near <= 800) main = biggest;
+    const b = d3.geoBounds(main.g);
+    const rad = Math.max(...[[b[0][0], b[0][1]], [b[1][0], b[1][1]], [b[0][0], b[1][1]], [b[1][0], b[0][1]]]
+      .map(p => d3.geoDistance(main.cen, p))) * R_EARTH;
+    const D = Math.max(1000, rad * 1.05);
+    const keep = polys.filter(p => d3.geoDistance(p.cen, main.cen) * R_EARTH <= D);
+    return { type: "Feature", geometry: { type: "MultiPolygon", coordinates: keep.map(p => p.c) } };
+  }
+  function spanKm(geo) {
+    const b = d3.geoBounds(geo);
+    const midLat = (b[0][1] + b[1][1]) / 2;
+    const dLon = ((b[1][0] - b[0][0]) + 360) % 360 || 0.01;
+    const wKm = dLon * 111.32 * Math.cos(midLat * Math.PI / 180), hKm = (b[1][1] - b[0][1]) * 110.6;
+    return Math.max(wKm, hKm);
+  }
+  function boxPoints(lon0, lat0, lon1, lat1) {
+    const pts = [];
+    for (let k = 0; k <= 8; k++) {
+      const x = lon0 + (lon1 - lon0) * k / 8, y = lat0 + (lat1 - lat0) * k / 8;
+      pts.push([x, lat0], [x, lat1], [lon0, y], [lon1, y]);
+    }
+    return { type: "MultiPoint", coordinates: pts };
+  }
+
+  // ---------- which map each city gets ----------
+  function makeView(c) {
+    const lat = c[3], lon = c[4], scope = c[6];
+    if (scope === "K") return { center: [12, 54], fit: boxPoints(-24, 35, 44, 70), hl: null, span: 4500 };
+    const f = byName[c[2]];
+    const local = f ? localGeom(f, lon, lat) : null;
+    if (scope === "C" && local) {
+      return { center: d3.geoCentroid(local), fit: local, hl: c[2], local, span: Math.max(250, spanKm(local)) };
+    }
+    // region: the country and its surroundings, not centred exactly on it
+    const cen = local ? d3.geoCentroid(local) : [lon, lat];
+    const span = Math.min(6000, Math.max(1600, (local ? spanKm(local) : 0) * 1.6));
+    let center = cen;
+    for (let k = 0; k < 12; k++) {
+      const j = span * 0.18 / 110.6;
+      const cy = cen[1] + (Math.random() * 2 - 1) * j;
+      const cx = cen[0] + (Math.random() * 2 - 1) * j / Math.max(0.2, Math.cos(cy * Math.PI / 180));
+      if (d3.geoDistance([cx, cy], [lon, lat]) * R_EARTH <= span * 0.36) { center = [cx, cy]; break; }
+    }
+    return { center, fitSpan: span, hl: null, span };
+  }
+
+  function layout() {
+    const wrap = document.getElementById("map-wrap");
+    const w = wrap.clientWidth, h = wrap.clientHeight;
+    svg.attr("viewBox", "0 0 " + w + " " + h).attr("width", w).attr("height", h);
+    if (!ready || !w || !h) return;
+    const top = playing ? 84 : 16, pad = 16;
+    const availW = w - 2 * pad, availH = h - top - pad;
+    if (availW <= 0 || availH <= 0) return;
+    const v = view || makeView(["", "", "", 50, 10, 1, "K"]);
+    projection = d3.geoAzimuthalEqualArea().clipAngle(90).rotate([-v.center[0], -v.center[1]]);
+    path = d3.geoPath(projection);
+    if (v.fit) projection.fitExtent([[pad + 14, top + 14], [w - pad - 14, h - pad - 14]], v.fit);
+    else {
+      projection.scale(Math.min(availW, availH) / (v.fitSpan / R_EARTH));
+      projection.translate([pad + availW / 2, top + availH / 2]);
+    }
+    gBase.selectAll("path").data(feats, d => d.properties.name).join("path")
+      .attr("d", path)
+      .attr("fill", v.hl ? "#EFEBE2" : "#FBF9F5")
+      .attr("stroke", "#B9B1A5").attr("stroke-width", .6)
+      .attr("vector-effect", "non-scaling-stroke");
+    // highlight only the part of the country being shown (not Alaska on a map for Miami)
+    const hlGeo = v.hl ? [v.local, ...(HL_EXTRA[v.hl] || []).map(n => byName[n]).filter(Boolean)] : [];
+    gHl.selectAll("path").data(hlGeo).join("path")
+      .attr("d", path).attr("fill", "#fff").attr("stroke", "#002147").attr("stroke-width", 1.2)
+      .attr("vector-effect", "non-scaling-stroke");
+    zoom.translateExtent([[-w * .6, -h * .6], [w * 1.6, h * 1.6]]);
+    svg.call(zoom.transform, d3.zoomIdentity);
+    marks = []; drawMarks();
+  }
+  window.addEventListener("resize", layout);
+
+  // marks are stored in map coordinates and redrawn through the current zoom
+  function drawMarks() {
+    const P = p => curT.apply(p);
+    gMarks.selectAll("*").remove();
+    for (const m of marks) {
+      if (m.type === "line") {
+        const a = P(m.a), b = P(m.b);
+        gMarks.append("line").attr("x1", a[0]).attr("y1", a[1]).attr("x2", b[0]).attr("y2", b[1])
+          .attr("stroke", m.color).attr("stroke-width", 1.8).attr("stroke-dasharray", "4 3");
+      } else if (m.type === "guess") {
+        const a = P(m.a);
+        gMarks.append("circle").attr("cx", a[0]).attr("cy", a[1]).attr("r", 5)
+          .attr("fill", "#1e3a8a").attr("stroke", "#fff").attr("stroke-width", 1.5);
+      } else if (m.type === "city") {
+        const a = P(m.a);
+        gMarks.append("rect").attr("x", a[0] - 5.5).attr("y", a[1] - 5.5).attr("width", 11).attr("height", 11)
+          .attr("fill", "#FDB94E").attr("stroke", "#002147").attr("stroke-width", 1.6);
+      }
+    }
+  }
+
+  d3.json("https://cdn.jsdelivr.net/npm/world-atlas@2/countries-50m.json").then(world => {
+    feats = topojson.feature(world, world.objects.countries).features
+      .filter(f => f.properties.name !== "Antarctica");
+    for (const f of feats) byName[f.properties.name] = f;
+    ready = true;
+    layout();
+    document.getElementById("loading").style.display = "none";
+    document.getElementById("menu-body").style.display = "block";
+    refreshMenu();
+  }).catch(() => { document.getElementById("loading").textContent = t("loadErr"); });
+
+  document.getElementById("map-wrap").style.background = "var(--sea)";
+  d3.select("#zin").on("click", () => svg.transition().duration(250).call(zoom.scaleBy, 1.7));
+  d3.select("#zout").on("click", () => svg.transition().duration(250).call(zoom.scaleBy, 1 / 1.7));
+  d3.select("#zreset").on("click", () => svg.transition().duration(350).call(zoom.transform, d3.zoomIdentity));
+
+  let toastTimer = null;
+  function toast(msg, kind) {
+    const el = document.getElementById("toast");
+    el.textContent = msg;
+    el.className = "show" + (kind ? " " + kind : "");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { el.className = ""; }, 1900);
+  }
+
+  // ---------- state ----------
+  let grp = "all", diff = "all", mode = null, playing = false;
+  try { grp = localStorage.getItem("ci-grp") || "all"; diff = localStorage.getItem("ci-diff") || "all"; } catch (e) {}
+  let hi = 0; try { hi = +(localStorage.getItem("ci-hiscore") || 0); } catch (e) {}
+  let queue = [], target = null, i = 0, total = 0, score = 0, streak = 0, best = 0, locked = false, results = [];
+
+  function pool(g, d) {
+    return CITIES.filter(c => {
+      if (g !== "all" && c[7] !== g) return false;
+      if (d === "1") return c[5] === 1;
+      if (d === "2") return c[5] <= 2;
+      return true;
+    });
+  }
+
+  function refreshMenu() {
+    const gl = { all: t("gAll"), eu: t("gEu"), as: t("gAs"), af: t("gAf"), am: t("gAm") };
+    document.querySelectorAll("#grp-row .pill").forEach(b => {
+      b.querySelector(".l").textContent = gl[b.dataset.grp];
+      b.querySelector(".cnt").textContent = "· " + pool(b.dataset.grp, diff).length;
+      b.classList.toggle("active", b.dataset.grp === grp);
+    });
+    const dl = { "1": t("d1"), "2": t("d2"), all: t("dAll") };
+    document.querySelectorAll("#diff-row .pill").forEach(b => {
+      b.querySelector(".l").textContent = dl[b.dataset.diff];
+      b.querySelector(".cnt").textContent = "· " + pool(grp, b.dataset.diff).length;
+      b.classList.toggle("active", b.dataset.diff === diff);
+    });
+    document.getElementById("mara-desc").textContent = t("maraD")(pool(grp, diff).length);
+    document.getElementById("hiscore").textContent = hi;
+  }
+  function applyLang() {
+    document.documentElement.lang = lang;
+    document.querySelectorAll("[data-i18n]").forEach(el => {
+      const v = STR[lang][el.dataset.i18n];
+      if (typeof v === "string") el.textContent = v;
+    });
+    document.querySelectorAll(".lang-btn").forEach(b => b.classList.toggle("active", b.dataset.lang === lang));
+    if (ready) refreshMenu();
+    if (playing && target) showItem(true);
+  }
+  document.querySelectorAll(".lang-btn").forEach(b => b.addEventListener("click", () => {
+    lang = b.dataset.lang; try { localStorage.setItem("geoquiz-lang", lang); } catch (e) {}
+    applyLang();
+  }));
+  document.querySelectorAll("#grp-row .pill").forEach(b => b.addEventListener("click", () => {
+    grp = b.dataset.grp; try { localStorage.setItem("ci-grp", grp); } catch (e) {} refreshMenu();
+  }));
+  document.querySelectorAll("#diff-row .pill").forEach(b => b.addEventListener("click", () => {
+    diff = b.dataset.diff; try { localStorage.setItem("ci-diff", diff); } catch (e) {} refreshMenu();
+  }));
+  document.querySelectorAll(".mode-btn").forEach(b => b.addEventListener("click", () => start(b.dataset.mode)));
+
+  const shuffle = a => { a = a.slice(); for (let k = a.length - 1; k > 0; k--) { const j = Math.floor(Math.random() * (k + 1)); [a[k], a[j]] = [a[j], a[k]]; } return a; };
+
+  function start(m) {
+    const list = pool(grp, diff);
+    if (!list.length) return;
+    mode = m; queue = shuffle(list);
+    total = m === "survival" ? 0 : m === "marathon" ? list.length : Math.min(+m, list.length);
+    score = 0; i = 0; streak = 0; best = 0; results = []; playing = true;
+    document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
+    document.getElementById("hud").classList.add("on");
+    document.getElementById("zoomers").classList.add("on");
+    showItem();
+  }
+
+  function showItem(keep) {
+    if (!keep) {
+      target = queue.pop(); locked = false;
+      view = makeView(target);
+      layout();
+    }
+    document.getElementById("prompt").textContent = t("find");
+    const tg = document.getElementById("target");
+    tg.textContent = label(target);
+    const sp = document.createElement("span"); sp.id = "tcty"; sp.textContent = ctyName(target);
+    tg.appendChild(sp);
+    document.getElementById("counter").textContent =
+      mode === "survival" ? t("item") + " " + (i + 1) : t("item") + " " + Math.min(i + 1, total) + " / " + total;
+    document.getElementById("score").textContent = score;
+  }
+
+  svg.on("click", ev => {
+    if (!playing || locked || guard()) return;
+    const [x, y] = d3.pointer(ev, gRoot.node());
+    const ll = projection.invert([x, y]);
+    if (!ll || !isFinite(ll[0]) || !isFinite(ll[1])) return;
+    locked = true;
+    answer(ll[0], ll[1], x, y);
+  });
+
+  function answer(lon, lat, x, y) {
+    const km = Math.round(d3.geoDistance([lon, lat], [target[4], target[3]]) * R_EARTH);
+    const pts = pointsFor(km, view.span);
+    const hit = km <= HIT * view.span;
+    score += pts;
+    if (hit) { streak++; best = Math.max(best, streak); } else streak = 0;
+    results.push({ c: target, km, pts, hit });
+    const tp = projection([target[4], target[3]]);
+    marks = [{ type: "guess", a: [x, y] }];
+    if (tp) marks.push({ type: "line", a: [x, y], b: tp, color: hit ? "#1D7A44" : "#A50021" }, { type: "city", a: tp });
+    drawMarks();
+    document.getElementById("score").textContent = score;
+    toast(pts > 0 ? t("nearBy")(km, pts) : t("missed")(km), hit ? "good" : "bad");
+    setTimeout(() => {
+      i++;
+      if (mode === "survival" && !hit) return end(true);
+      if ((mode !== "survival" && i >= total) || !queue.length) return end(false);
+      showItem();
+    }, hit ? 1500 : 2300);
+  }
+
+  function end(died) {
+    playing = false; target = null; view = null;
+    document.getElementById("hud").classList.remove("on");
+    document.getElementById("zoomers").classList.remove("on");
+    const hits = results.filter(r => r.hit).length;
+    const dists = results.map(r => r.km).sort((a, b) => a - b);
+    const med = dists.length ? (dists.length % 2 ? dists[(dists.length - 1) / 2]
+      : Math.round((dists[dists.length / 2 - 1] + dists[dists.length / 2]) / 2)) : null;
+    document.getElementById("res-title").textContent = mode === "survival" && died ? t("gameOver") : t("results");
+    document.getElementById("final-score").textContent = score;
+    document.getElementById("r-hits").textContent = hits + " / " + results.length;
+    document.getElementById("r-dist").textContent = med === null ? "—" : med + (lang === "el" ? " χλμ" : " km");
+    document.getElementById("r-streak").textContent = best;
+    let sub;
+    if (mode === "survival") {
+      if (score > hi) { hi = score; try { localStorage.setItem("ci-hiscore", String(hi)); } catch (e) {} sub = t("newHi"); }
+      else sub = t("hi") + hi;
+      document.getElementById("hiscore").textContent = hi;
+    } else {
+      const acc = results.length ? hits / results.length : 0;
+      sub = acc === 1 ? t("perfect") : acc >= .7 ? t("great") : acc >= .4 ? t("ok") : t("poor");
+    }
+    document.getElementById("final-sub").textContent = sub;
+    const worst = results.filter(r => !r.hit).sort((a, b) => b.km - a.km).slice(0, 8);
+    const box = document.getElementById("misses");
+    if (worst.length) {
+      box.style.display = "block";
+      box.innerHTML = "<div style='color:var(--ink);font-weight:600;padding-bottom:4px'>" + t("missesTitle") + "</div>" +
+        worst.map(r => "<div>" + t("mLine")(label(r.c), r.km) + "</div>").join("");
+    } else box.style.display = "none";
+    document.getElementById("results-screen").classList.add("active");
+    layout();
+  }
+
+  document.getElementById("again-btn").addEventListener("click", () => start(mode));
+  document.getElementById("menu-btn").addEventListener("click", () => {
+    document.getElementById("results-screen").classList.remove("active");
+    document.getElementById("menu-screen").classList.add("active");
+    refreshMenu(); layout();
+  });
+
+  applyLang();
+  layout();
+})();
+</script>
+</body>
+</html>
