@@ -157,6 +157,13 @@
   .prev a { display: inline-block; margin: 4px; padding: 7px 12px; border: 1.5px solid var(--line); border-radius: 999px;
     font-size: 13px; color: var(--ink); text-decoration: none; background: #fff; }
   .prev a.done { border-color: var(--ink); }
+  .test-nav { margin-top: 20px; padding-top: 16px; border-top: 2px dashed var(--line); }
+  .test-nav a.primary-btn { display: inline-block; text-decoration: none; }
+  .t-sum { font-size: 14px; color: var(--muted); margin-bottom: 12px; }
+  .t-sum b { color: var(--ink); }
+  .t-go { display: flex; gap: 8px; justify-content: center; margin-bottom: 10px; }
+  .t-go input { width: 90px; font-size: 16px; padding: 10px; border: 1.5px solid var(--ink); border-radius: 10px; text-align: center; font-family: inherit; }
+  .t-reset { margin-top: 12px; font-size: 13px; padding: 8px 14px; }
   .soon-note { font-size: 13px; color: var(--muted); border: 1px dashed var(--line); border-radius: 10px; padding: 10px; margin-bottom: 16px; }
 </style>
 </head>
@@ -195,6 +202,7 @@
         <div class="btn-row"><button class="primary-btn" id="play-btn" data-i18n="play">Play today's quiz</button></div>
         <div class="prev" id="intro-prev"></div>
       </div>
+      <div class="test-nav" id="intro-test" style="display:none"></div>
       <p class="colophon">
         <a href="index.html" data-i18n="allGames">← All games</a>
         <span class="dot">·</span><span data-i18n="copyright">© 2026 Social Capital - Borderline</span>
@@ -220,6 +228,7 @@
       </div>
       <div class="next-in" id="next-in"></div>
       <div class="prev" id="res-prev"></div>
+      <div class="test-nav" id="res-test" style="display:none"></div>
       <p class="colophon"><a href="index.html" data-i18n="allGames">← All games</a></p>
     </div>
   </div>
@@ -1396,7 +1405,14 @@ const SCHEDULE = [
       notStarted: "The daily quiz starts soon.", ended: "No quiz scheduled for this day.",
       rCity: "City", rCountry: "Country", rCapital: "Capital", timeout: "time's up", km: "km",
       allGames: "← All games", copyright: "© 2026 Social Capital - Borderline",
-      loadErr: "Could not load the map — check your connection and reload."
+      loadErr: "Could not load the map — check your connection and reload.",
+      testRealBanner: "TEST MODE · real sequence — scores are kept separately from your real games and never sent anywhere.",
+      testFreeBanner: "TEST MODE · limitless — play any day, as often as you like. Nothing is saved.",
+      testReal: "Test mode · real sequence", testFree: "Test mode · choose a day",
+      testProg: (p, all, tot, max) => "<b>" + p + "</b> of " + all + " quizzes played · <b>" + tot + "</b> / " + max + " points" + (max ? " (" + Math.round(100 * tot / max) + "%)" : ""),
+      playN: n => "Play #" + n, playThis: n => "Play #" + n, testReset: "Reset test progress",
+      testResetQ: "Delete all test-mode results and start again from #1?", go: "Go", random: "Random day",
+      stAvg: "Average", testDone: "You've played every quiz in the schedule!"
     },
     el: {
       title: "Καθημερινό κουίζ", loading: "Φόρτωση παγκόσμιου χάρτη…", points: "Πόντοι",
@@ -1422,7 +1438,14 @@ const SCHEDULE = [
       notStarted: "Το καθημερινό κουίζ ξεκινά σύντομα.", ended: "Δεν υπάρχει κουίζ για αυτή τη μέρα.",
       rCity: "Πόλη", rCountry: "Χώρα", rCapital: "Πρωτεύουσα", timeout: "τέλος χρόνου", km: "χλμ",
       allGames: "← Όλα τα παιχνίδια", copyright: "© 2026 Social Capital - Borderline",
-      loadErr: "Δεν φορτώθηκε ο χάρτης — ελέγξτε τη σύνδεση και ανανεώστε."
+      loadErr: "Δεν φορτώθηκε ο χάρτης — ελέγξτε τη σύνδεση και ανανεώστε.",
+      testRealBanner: "ΔΟΚΙΜΑΣΤΙΚΗ ΛΕΙΤΟΥΡΓΙΑ · πραγματική σειρά — τα σκορ κρατιούνται χωριστά και δεν στέλνονται πουθενά.",
+      testFreeBanner: "ΔΟΚΙΜΑΣΤΙΚΗ ΛΕΙΤΟΥΡΓΙΑ · ελεύθερη — παίξε όποια μέρα θες, όσες φορές θες. Τίποτα δεν αποθηκεύεται.",
+      testReal: "Δοκιμή · πραγματική σειρά", testFree: "Δοκιμή · διάλεξε μέρα",
+      testProg: (p, all, tot, max) => "<b>" + p + "</b> από " + all + " κουίζ · <b>" + tot + "</b> / " + max + " πόντοι" + (max ? " (" + Math.round(100 * tot / max) + "%)" : ""),
+      playN: n => "Παίξε το #" + n, playThis: n => "Παίξε το #" + n, testReset: "Μηδενισμός δοκιμών",
+      testResetQ: "Να διαγραφούν όλα τα αποτελέσματα δοκιμών και να ξεκινήσεις από το #1;", go: "Πήγαινε", random: "Τυχαία μέρα",
+      stAvg: "Μέσος όρος", testDone: "Έπαιξες όλα τα κουίζ του προγράμματος!"
     }
   };
   let lang = "en";
@@ -1471,18 +1494,27 @@ const SCHEDULE = [
   const TODAY = todayN();
   let N = TODAY, kind = "today";
   const q = new URLSearchParams(location.search);
-  if (q.has("n")) {
+  const TEST = ["real", "free"].includes(q.get("test")) ? q.get("test") : null;   // test modes: ?test=real / ?test=free
+  if (!TEST && q.has("n")) {
     const k = parseInt(q.get("n"), 10);
     if (k >= 1 && k <= SCHEDULE.length && k !== TODAY) { N = k; kind = k < TODAY ? "archive" : "preview"; }
   }
-  const valid = N >= 1 && N <= SCHEDULE.length;
 
   // ---------- local storage ----------
-  const SKEY = "bl-daily-v1";
+  const SKEY = TEST === "real" ? "bl-daily-test-real" : TEST === "free" ? "bl-daily-test-free" : "bl-daily-v1";
   let mem = { plays: {}, cur: null };
   function load() { try { return JSON.parse(localStorage.getItem(SKEY)) || mem; } catch (e) { return mem; } }
   let store = load(); if (!store.plays) store.plays = {};
-  function save() { if (kind === "preview") return; mem = store; try { localStorage.setItem(SKEY, JSON.stringify(store)); } catch (e) {} }
+  function save() { if (kind === "preview" || TEST === "free") return; mem = store; try { localStorage.setItem(SKEY, JSON.stringify(store)); } catch (e) {} }
+
+  function nextReal() { let k = 1; while (store.plays[k]) k++; return k; }
+  if (TEST) {
+    kind = "test";
+    const k = parseInt(q.get("n"), 10);
+    if (TEST === "real") { const nx = nextReal(); N = k >= 1 && k < nx ? k : nx; }   // real sequence: no skipping ahead
+    else N = k >= 1 && k <= SCHEDULE.length ? k : 1;
+  }
+  const valid = N >= 1 && N <= SCHEDULE.length;
 
   // ---------- rounds ----------
   function buildRounds(n) {
@@ -1714,9 +1746,11 @@ const SCHEDULE = [
   }
   function banner(el) {
     el.style.display = kind === "today" ? "none" : "block";
-    el.textContent = kind === "preview" ? t("previewBanner") : kind === "archive" ? t("archiveBanner") : "";
+    el.textContent = kind === "test" ? (TEST === "real" ? t("testRealBanner") : t("testFreeBanner"))
+      : kind === "preview" ? t("previewBanner") : kind === "archive" ? t("archiveBanner") : "";
   }
   function prevList(el) {
+    if (TEST) { el.innerHTML = ""; return; }
     const items = [];
     for (let k = TODAY - 1; k >= Math.max(1, TODAY - 7); k--) {
       const p = store.plays[k];
@@ -1729,21 +1763,23 @@ const SCHEDULE = [
 
   function renderIntro() {
     banner($("intro-banner"));
+    testNav($("intro-test"));
     if (!valid) {
-      $("intro-num").textContent = ""; $("intro-date").textContent = N < 1 ? t("notStarted") : t("ended");
+      $("intro-num").textContent = "";
+      $("intro-date").textContent = TEST === "real" ? t("testDone") : N < 1 ? t("notStarted") : t("ended");
       return;
     }
     $("intro-num").textContent = t("num")(N);
     $("intro-date").textContent = fmtDate(N);
     if (store.plays[N] && kind !== "preview") return showResults();
     $("rules").innerHTML = t("rules").map(x => "<div>" + x + "</div>").join("");
-    const cur = store.cur && store.cur.n === N && kind !== "preview" ? store.cur : null;
-    $("play-btn").textContent = cur ? t("resume") : kind === "today" ? t("play") : t("playArchive");
+    const cur = store.cur && store.cur.n === N && kind !== "preview" && TEST !== "free" ? store.cur : null;
+    $("play-btn").textContent = cur ? t("resume") : kind === "today" ? t("play") : kind === "test" ? t("playThis")(N) : t("playArchive");
     $("intro-body").style.display = "block";
     prevList($("intro-prev"));
   }
   $("play-btn").addEventListener("click", () => {
-    const cur = store.cur && store.cur.n === N && kind !== "preview" ? store.cur : null;
+    const cur = store.cur && store.cur.n === N && kind !== "preview" && TEST !== "free" ? store.cur : null;
     if (cur) {
       results = cur.r.slice();
       if (cur.live === results.length) results.push({ pts: 0, to: 1 });   // left mid-round: that round counts as time's up
@@ -1765,7 +1801,7 @@ const SCHEDULE = [
     $("round-tag").textContent = t("round")(i + 1);
     $("score").textContent = results.reduce((a, b) => a + b.pts, 0);
     setPrompt();
-    $("panel").classList.remove("on");
+    $("panel").classList.remove("on"); $("panel").innerHTML = "";
     if (r.type === "capital") showCapitalPanel(r);
     store.cur.live = i; save();
     timerStart = performance.now(); tick();
@@ -1939,7 +1975,7 @@ const SCHEDULE = [
     if (kind !== "preview") {
       store.plays[N] = { s: total, r: results.map(x => x.pts), d: results.map(x => [x.km || 0, x.to ? 1 : 0]), a: kind === "archive" ? 1 : 0, ts: Date.now() };
       store.cur = null; save();
-      // Phase 4: submit to the server here (today's ranking + all-time leaderboard)
+      // Phase 4: submit to the server here (today's ranking + all-time leaderboard) — never when TEST is set
     } else store.preview = { n: N, s: total, r: results.map(x => x.pts) };
     showResults(total);
   }
@@ -1969,8 +2005,15 @@ const SCHEDULE = [
     $("res-compare").style.display = kind === "today" ? "block" : "none";
     const st = stats();
     $("st-played").textContent = st.played; $("st-streak").textContent = st.streak; $("st-total").textContent = st.total;
+    const streakLbl = $("st-streak").nextElementSibling;
+    if (TEST) { streakLbl.textContent = t("stAvg"); $("st-streak").textContent = st.played ? Math.round(st.total / st.played) : 0; }
+    else streakLbl.textContent = t("stStreak");
+    $("share-btn").style.display = TEST ? "none" : "";
     prevList($("res-prev"));
+    testNav($("res-test"));
     clearInterval(cdTimer);
+    $("next-in").style.display = TEST ? "none" : "";
+    if (TEST) { showScreen("results-screen"); return; }
     const cd = () => { const s = secsToMidnight(); const hh = Math.floor(s / 3600), mm = Math.floor(s % 3600 / 60), ss = s % 60;
       $("next-in").innerHTML = t("nextIn") + "<b>" + hh + ":" + String(mm).padStart(2, "0") + ":" + String(ss).padStart(2, "0") + "</b>";
       if (s <= 1 && kind === "today") setTimeout(() => location.reload(), 1500); };
@@ -1988,6 +2031,41 @@ const SCHEDULE = [
     }
     const b = $("share-btn"), old = b.textContent; b.textContent = t("copied"); setTimeout(() => { b.textContent = old; }, 2200);
   });
+
+  // ---------- test-mode navigation ----------
+  function testNav(el) {
+    if (!TEST) { el.style.display = "none"; return; }
+    el.style.display = "block";
+    if (TEST === "real") {
+      const nx = nextReal(), played = nx - 1;
+      let tot = 0; for (let k = 1; k < nx; k++) tot += store.plays[k].s;
+      const chips = [];
+      for (let k = played; k >= Math.max(1, played - 11); k--)
+        chips.push('<a class="done" href="?test=real&n=' + k + '">#' + k + " · " + store.plays[k].s + "</a>");
+      el.innerHTML = '<p class="row-label">' + t("testReal") + '</p><div class="t-sum">' + t("testProg")(played, SCHEDULE.length, tot, played * 500) + "</div>" +
+        (nx <= SCHEDULE.length && N !== nx ? '<div class="btn-row"><a class="primary-btn" href="?test=real">' + t("playN")(nx) + "</a></div>" : "") +
+        '<div class="prev">' + chips.join("") + "</div>" +
+        (played ? '<button class="ghost-btn t-reset">' + t("testReset") + "</button>" : "");
+      const rb = el.querySelector(".t-reset");
+      if (rb) rb.addEventListener("click", () => {
+        if (!confirm(t("testResetQ"))) return;
+        try { localStorage.removeItem(SKEY); } catch (e) {}
+        location.href = "?test=real";
+      });
+    } else {
+      el.innerHTML = '<p class="row-label">' + t("testFree") + '</p><form class="t-go">' +
+        '<button type="button" class="ghost-btn" data-d="-1">←</button>' +
+        '<input type="number" min="1" max="' + SCHEDULE.length + '" value="' + Math.min(Math.max(N, 1), SCHEDULE.length) + '">' +
+        '<button class="primary-btn" type="submit">' + t("go") + '</button>' +
+        '<button type="button" class="ghost-btn" data-d="1">→</button></form>' +
+        '<button type="button" class="ghost-btn t-rand">' + t("random") + "</button>";
+      const go = n => { n = Math.min(Math.max(1, n | 0), SCHEDULE.length); location.href = "?test=free&n=" + n; };
+      const inp = el.querySelector("input");
+      el.querySelector("form").addEventListener("submit", ev => { ev.preventDefault(); go(+inp.value); });
+      el.querySelectorAll("[data-d]").forEach(b => b.addEventListener("click", () => go(N + +b.dataset.d)));
+      el.querySelector(".t-rand").addEventListener("click", () => go(1 + Math.floor(Math.random() * SCHEDULE.length)));
+    }
+  }
 
   // ---------- language ----------
   function applyLang() {
