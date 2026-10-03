@@ -474,11 +474,11 @@ const CNAMES = {"Afghanistan": ["Afghanistan", "Αφγανιστάν"], "Algeria
 
   const svg = d3.select("#map");
   const gRoot = svg.append("g");
-  const gBase = gRoot.append("g"), gHl = gRoot.append("g");
+  const gBase = gRoot.append("g"), gHl = gRoot.append("g"), gLakes = gRoot.append("g");
   const gMarks = svg.append("g").attr("pointer-events", "none");   // outside the zoom group: marks keep their size
   let projection = d3.geoAzimuthalEqualArea().clipAngle(90);
   let path = d3.geoPath(projection);
-  let feats = [], byName = {}, ready = false, view = null, curT = d3.zoomIdentity, marks = [];
+  let feats = [], lakes = [], byName = {}, ready = false, view = null, curT = d3.zoomIdentity, marks = [];
 
   const zoom = d3.zoom().scaleExtent([1, 20]).clickDistance(8)
     .on("zoom", ev => { curT = ev.transform; gRoot.attr("transform", curT); drawMarks(); });
@@ -583,6 +583,10 @@ const CNAMES = {"Afghanistan": ["Afghanistan", "Αφγανιστάν"], "Algeria
     gHl.selectAll("path").data(hlGeo).join("path")
       .attr("d", path).attr("fill", "#fff").attr("stroke", "#002147").attr("stroke-width", 1.2)
       .attr("vector-effect", "non-scaling-stroke");
+    // lakes sit on top: the country shapes don't have them cut out (Great Lakes, Victoria, Baikal…)
+    gLakes.selectAll("path").data(lakes).join("path")
+      .attr("d", path).attr("fill", "#E7E1D3").attr("stroke", "#B9B1A5").attr("stroke-width", .5)
+      .attr("vector-effect", "non-scaling-stroke");
     zoom.translateExtent([[-w * .6, -h * .6], [w * 1.6, h * 1.6]]);
     svg.call(zoom.transform, d3.zoomIdentity);
     marks = []; drawMarks();
@@ -619,6 +623,9 @@ const CNAMES = {"Afghanistan": ["Afghanistan", "Αφγανιστάν"], "Algeria
     document.getElementById("loading").style.display = "none";
     document.getElementById("menu-body").style.display = "block";
     refreshMenu();
+    d3.json("https://cdn.jsdelivr.net/gh/martynafford/natural-earth-geojson@master/50m/physical/ne_50m_lakes.json")
+      .then(lk => { lakes = lk.features.filter(f => { const a = d3.geoArea(f); return a > 1.5e-5 && a < 1; }); layout(); })
+      .catch(() => {});
   }).catch(() => { document.getElementById("loading").textContent = t("loadErr"); });
 
   document.getElementById("map-wrap").style.background = "var(--sea)";
