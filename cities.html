@@ -585,8 +585,8 @@ const ISLANDS = {"Maldives":[[[[73.162,-0.682],[73.173,-0.688],[73.165,-0.688],[
       .attr("fill", v.hl ? "#EFEBE2" : "#FBF9F5")
       .attr("stroke", "#B9B1A5").attr("stroke-width", .6)
       .attr("vector-effect", "non-scaling-stroke");
-    // highlight only the part of the country being shown (not Alaska on a map for Miami)
-    const hlGeo = v.hl ? [v.local, ...(HL_EXTRA[v.hl] || []).map(n => byName[n]).filter(Boolean)] : [];
+    // highlight the whole country (the view is still fitted to the part around the city)
+    const hlGeo = v.hl ? [byName[v.hl], ...(HL_EXTRA[v.hl] || []).map(n => byName[n])].filter(Boolean) : [];
     gHl.selectAll("path").data(hlGeo).join("path")
       .attr("d", path).attr("fill", "#fff").attr("stroke", "#002147").attr("stroke-width", 1.2)
       .attr("vector-effect", "non-scaling-stroke");
